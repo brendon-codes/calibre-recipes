@@ -1,0 +1,53 @@
+#!/usr/bin/env python2
+# vim:fileencoding=utf-8
+
+from __future__ import (
+    unicode_literals,
+    division,
+    absolute_import,
+    print_function
+)
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class HackerNewsRecipe(BasicNewsRecipe):
+    title = "Hacker News"
+    oldest_article = 2
+    max_articles_per_feed = 200
+    auto_cleanup   = True
+    use_embedded_content = False
+    timefmt = ""
+
+    ##
+    ## hnapp search string:
+    ##
+    ##  score>60 type:story type:link -host:theatlantic.com
+    ##    -host:theeconomist.com -host:nytimes.com
+    ##    -host:bloomberg.com -host:hbr.org
+    ##
+    feeds = [
+        (
+            "Page 1",
+            (
+                "http://hnapp.com/rss?q=score%3E60%20type%3Astory%20"
+                "type%3Alink%20-host%3Atheatlantic.com%20"
+                "-host%3Atheeconomist.com%20-host%3Anytimes.com%20"
+                "-host%3Abloomberg.com%20-host%3Ahbr.org"
+            )
+        ),
+        (
+            "Page 2",
+            (
+                "http://hnapp.com/rss?q=score%3E60%20type%3Astory%20"
+                "type%3Alink%20-host%3Atheatlantic.com%20"
+                "-host%3Atheeconomist.com%20-host%3Anytimes.com%20"
+                "-host%3Abloomberg.com%20-host%3Ahbr.org&page=2"
+            )
+        )
+    ]
+
+    def parse_feeds(self):
+        parsed_feeds = BasicNewsRecipe.parse_feeds(self)
+        for parsed_feed in parsed_feeds:
+            parsed_feed.articles.sort(key=(lambda x: x.date), reverse=True)
+        return parsed_feeds
