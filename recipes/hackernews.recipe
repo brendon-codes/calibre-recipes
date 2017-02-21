@@ -16,6 +16,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     max_articles_per_feed = 200
     auto_cleanup   = True
     use_embedded_content = False
+    publication_type = "newspaper"
     timefmt = ""
 
     ##

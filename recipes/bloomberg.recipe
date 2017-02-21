@@ -19,6 +19,7 @@ class BloombergRecipe(BasicNewsRecipe):
     max_articles_per_feed = 100
     auto_cleanup = True
     use_embedded_content = False
+    publication_type = "newspaper"
     timefmt = ""
     delay = 1
     feeds = [
