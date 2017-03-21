@@ -16,7 +16,7 @@ from calibre.web.feeds.news import BasicNewsRecipe
 
 
 class NYTimesRecipe(BasicNewsRecipe):
-    title = "New York Times"
+    title = "The New York Times"
     oldest_article = 2
     max_articles_per_feed = 200
     auto_cleanup   = True
