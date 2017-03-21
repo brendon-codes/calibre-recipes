@@ -1,0 +1,120 @@
+#!/usr/bin/env python2
+# vim:fileencoding=utf-8
+
+from __future__ import (
+    unicode_literals,
+    division,
+    absolute_import,
+    print_function
+)
+import re
+import sys
+import datetime
+import json
+import pprint
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class NYTimesRecipe(BasicNewsRecipe):
+    title = "New York Times"
+    oldest_article = 2
+    max_articles_per_feed = 200
+    auto_cleanup   = True
+    use_embedded_content = False
+    publication_type = "newspaper"
+    timefmt = ""
+    needs_subscription = True
+    feeds = []
+
+    x_struct_url_base = (
+        "http://app.nytimes.com/data/"
+        "{year:04d}/{month:02d}/{day:02d}/structure"
+    )
+    x_sections = [
+        "nytfrontpage",
+        "world",
+        "us",
+        "business"
+    ]
+
+    def setup_browser(self):
+        br = self.get_browser()
+        if (self.username is not None) and (self.password is not None):
+            br.open("https://www.nytimes.com/auth/login")
+            br.select_form(nr=0)
+            br["userid"]   = self.username
+            br["password"] = self.password
+            br.submit()
+        return br
+
+    def get_structure(self, br):
+        dt = datetime.datetime.now()
+        struct_url = self.x_struct_url_base.format(**{
+            "year": dt.year,
+            "month": dt.month,
+            "day": dt.day
+        })
+        resp = br.open(struct_url)
+        data = resp.read()
+        obj = dict(json.loads(data))
+        return obj
+
+    def get_sections(self, mainobj):
+        out = []
+        sections = mainobj["sections"]
+        for section in sections:
+            name = section["internalName"]
+            if name not in self.x_sections:
+                continue
+            out.append(section)
+        return out
+
+    def extract_date_from_url(self, url):
+        patt = (
+            r"(?u)"
+            r"^http\u003A//www\u002Enytimes\u002Ecom"
+            r"/(?P<year>[0-9]{4})"
+            r"/(?P<month>[0-9]{2})"
+            r"/(?P<day>[0-9]{2})/"
+        )
+        res = re.match(patt, url)
+        if res is None:
+            return None
+        obj = res.groupdict()
+        year = int(obj["year"])
+        month = int(obj["month"])
+        day = int(obj["day"])
+        dt = datetime.datetime(year=year, month=month, day=day)
+        out = dt.strftime("%Y-%m-%d")
+        return out
+
+    def extract_authors(self, authors_obj):
+        return ", ".join(authors_obj)
+
+    def get_feeds(self, sections):
+        outfeeds = []
+        for section in sections:
+            feedtitle = section["friendlyName"]
+            articles = []
+            for feed_article in section["articles"]:
+                article = {
+                    "title": feed_article["headline"],
+                    "url": feed_article["wwwUrl"],
+                    "date": self.extract_date_from_url(feed_article["wwwUrl"]),
+                    "author": self.extract_authors(feed_article["authors"])
+                }
+                articles.append(article)
+            if len(articles) > 0:
+                outfeeds.append((
+                    feedtitle,
+                    articles
+                ))
+        return outfeeds
+
+    def parse_index(self):
+        outfeeds = []
+        br = self.setup_browser()
+        mainobj = self.get_structure(br)
+        sections = self.get_sections(mainobj)
+        outfeeds = self.get_feeds(sections)
+        return outfeeds
