@@ -88,8 +88,10 @@ class NYTimesRecipe(BasicNewsRecipe):
         out = dt.strftime("%Y-%m-%d")
         return out
 
-    def extract_authors(self, authors_obj):
-        return ", ".join(authors_obj)
+    def extract_authors(self, feed_article):
+        if "authors" not in feed_article:
+            return ""
+        return ", ".join(feed_article["authors"])
 
     def get_feeds(self, sections):
         outfeeds = []
@@ -101,7 +103,7 @@ class NYTimesRecipe(BasicNewsRecipe):
                     "title": feed_article["headline"],
                     "url": feed_article["wwwUrl"],
                     "date": self.extract_date_from_url(feed_article["wwwUrl"]),
-                    "author": self.extract_authors(feed_article["authors"])
+                    "author": self.extract_authors(feed_article)
                 }
                 articles.append(article)
             if len(articles) > 0:
