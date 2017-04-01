@@ -34,7 +34,8 @@ class NYTimesRecipe(BasicNewsRecipe):
         "nytfrontpage",
         "world",
         "us",
-        "business"
+        "business",
+        "opinion"
     ]
 
     def setup_browser(self):

@@ -1,0 +1,98 @@
+#!/usr/bin/env python2
+# vim:fileencoding=utf-8
+
+from __future__ import (
+    unicode_literals,
+    division,
+    absolute_import,
+    print_function
+)
+from calibre.web.feeds.news import BasicNewsRecipe
+import datetime
+from dateutil import relativedelta
+
+
+class TheEconomistRecipe(BasicNewsRecipe):
+    title = "The Economist"
+    oldest_article = 8
+    max_articles_per_feed = 200
+    auto_cleanup   = True
+    use_embedded_content = False
+    publication_type = "magazine"
+    needs_subscription = True
+    handle_gzip = True
+    timefmt = ""
+
+    feeds = [
+        (
+            "The World This Week",
+            "https://www.economist.com/rss/the_world_this_week_rss.xml"
+        ),
+        (
+            "Leaders",
+            "https://www.economist.com/feeds/print-sections/69/leaders.xml"
+        ),
+        (
+            "Briefings",
+            "https://www.economist.com/feeds/print-sections/102/briefings2.xml"
+        ),
+        (
+            "United States",
+            "https://www.economist.com/"
+            "feeds/print-sections/71/united-states.xml"
+        ),
+        (
+            "The Americas",
+            "https://www.economist.com/"
+            "feeds/print-sections/72/the-americas.xml"
+        ),
+        (
+            "Middle East and Africa",
+            "https://www.economist.com/"
+            "feeds/print-sections/99/middle-east-africa.xml"
+        ),
+        (
+            "Asia",
+            "https://www.economist.com/feeds/print-sections/73/asia.xml"
+        ),
+        (
+            "China",
+            "https://www.economist.com/feeds/print-sections/77729/china.xml"
+        ),
+        (
+            "International",
+            "https://www.economist.com/"
+            "feeds/print-sections/74/international.xml"
+        ),
+        (
+            "Business",
+            "https://www.economist.com/feeds/print-sections/77/business.xml"
+        ),
+        (
+            "Finance and Economica",
+            "https://www.economist.com/"
+            "feeds/print-sections/79/finance-and-economics.xml"
+        ),
+        (
+            "Science and Technology",
+            "https://www.economist.com/"
+            "feeds/print-sections/80/science-and-technology.xml"
+        )
+    ]
+
+    def get_issue_date(self):
+        now = datetime.datetime.now()
+        rel = relativedelta.relativedelta(weekday=relativedelta.SA(-1))
+        last_sat = now + rel
+        return last_sat
+
+    def get_cover_url(self):
+        root = (
+            "https://cdn.static-economist.com/"
+            "sites/default/files/imagecache/"
+            "print-cover-full/print-covers/{date}_cna400.jpg"
+        )
+        last_sat = self.get_issue_date()
+        dt_str = last_sat.strftime("%Y%m%d")
+        url = root.format(date=dt_str)
+        return url
