@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python2
 # vim:fileencoding=utf-8
 
@@ -95,12 +94,16 @@ class TheEconomistRecipe(BasicNewsRecipe):
     ]
 
     def prepend_feeds(self):
-        return [
-            (
-                "Cover",
-                self.get_cover_url()
-            )
-        ]
+        ##
+        ## TODO: get cover working as first section
+        ##
+        #return [
+        #    (
+        #        "Cover",
+        #        self.get_cover_url()
+        #    )
+        #]
+        return []
 
     def get_feeds(self):
         return (
