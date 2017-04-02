@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python2
 # vim:fileencoding=utf-8
 
@@ -14,7 +15,7 @@ from dateutil import relativedelta
 
 class TheEconomistRecipe(BasicNewsRecipe):
     title = "The Economist"
-    oldest_article = 8
+    oldest_article = 9
     max_articles_per_feed = 200
     auto_cleanup   = True
     use_embedded_content = False
@@ -23,7 +24,7 @@ class TheEconomistRecipe(BasicNewsRecipe):
     handle_gzip = True
     timefmt = ""
 
-    feeds = [
+    x_feeds = [
         (
             "The World This Week",
             "https://www.economist.com/rss/the_world_this_week_rss.xml"
@@ -37,9 +38,22 @@ class TheEconomistRecipe(BasicNewsRecipe):
             "https://www.economist.com/feeds/print-sections/102/briefings2.xml"
         ),
         (
+            "Special Reports",
+            "https://www.economist.com/"
+            "feeds/print-sections/103/special-reports.xml"
+        ),
+        (
             "United States",
             "https://www.economist.com/"
             "feeds/print-sections/71/united-states.xml"
+        ),
+        (
+            "Britain",
+            "https://www.economist.com/feeds/print-sections/76/britain.xml"
+        ),
+        (
+            "Europe",
+            "https://www.economist.com/feeds/print-sections/75/europe.xml"
         ),
         (
             "The Americas",
@@ -80,11 +94,55 @@ class TheEconomistRecipe(BasicNewsRecipe):
         )
     ]
 
-    def get_issue_date(self):
+    def prepend_feeds(self):
+        return [
+            (
+                "Cover",
+                self.get_cover_url()
+            )
+        ]
+
+    def get_feeds(self):
+        return (
+            self.prepend_feeds() +
+            self.x_feeds
+        )
+
+    def get_issue_date_start(self):
         now = datetime.datetime.now()
-        rel = relativedelta.relativedelta(weekday=relativedelta.SA(-1))
-        last_sat = now + rel
-        return last_sat
+        rel = relativedelta.relativedelta(weekday=relativedelta.FR(-1))
+        offset = datetime.timedelta(days=1)
+        offdt = ((now + rel) + offset)
+        newdt = datetime.datetime(
+            year=offdt.year,
+            month=offdt.month,
+            day=offdt.day
+        )
+        return newdt
+
+    def get_articles_date_start(self):
+        now = datetime.datetime.now()
+        rel = relativedelta.relativedelta(weekday=relativedelta.TH(-1))
+        offset = datetime.timedelta(days=5)
+        offdt = ((now + rel) - offset)
+        newdt = datetime.datetime(
+            year=offdt.year,
+            month=offdt.month,
+            day=offdt.day
+        )
+        return newdt
+
+    def get_articles_date_end(self):
+        now = datetime.datetime.now()
+        rel = relativedelta.relativedelta(weekday=relativedelta.TH(-1))
+        offset = datetime.timedelta(days=1)
+        offdt = ((now + rel) + offset)
+        newdt = datetime.datetime(
+            year=offdt.year,
+            month=offdt.month,
+            day=offdt.day
+        )
+        return newdt
 
     def get_cover_url(self):
         root = (
@@ -92,7 +150,27 @@ class TheEconomistRecipe(BasicNewsRecipe):
             "sites/default/files/imagecache/"
             "print-cover-full/print-covers/{date}_cna400.jpg"
         )
-        last_sat = self.get_issue_date()
+        last_sat = self.get_issue_date_start()
         dt_str = last_sat.strftime("%Y%m%d")
         url = root.format(date=dt_str)
         return url
+
+    def parse_feeds(self):
+        arts_date_start = self.get_articles_date_start()
+        arts_date_end = self.get_articles_date_end()
+
+        def filt_articles(article):
+            artdt = datetime.datetime(*article.date[:6])
+            ret = (
+                (artdt >= arts_date_start) and
+                (artdt < arts_date_end)
+            )
+            return ret
+
+        def map_feeds(feed):
+            feed.articles = filter(filt_articles, feed.articles)
+            return feed
+
+        feeds_orig = BasicNewsRecipe.parse_feeds(self)
+        feeds = map(map_feeds, feeds_orig)
+        return feeds
