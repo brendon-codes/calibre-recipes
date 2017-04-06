@@ -1,0 +1,2 @@
+requests==2.13.0
+git+https://github.com/newvem/beautifulsoup@3.0
