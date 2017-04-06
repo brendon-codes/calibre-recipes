@@ -9,6 +9,9 @@ from __future__ import (
 )
 import json
 from urlparse import urlparse
+
+from calibre.ebooks.BeautifulSoup import BeautifulSoup
+from calibre.ptempfile import PersistentTemporaryFile
 from calibre.web.feeds.news import BasicNewsRecipe
 
 
@@ -20,6 +23,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     use_embedded_content = False
     publication_type = "blog"
     timefmt = ""
+    temp_files = []
 
     FEED_TITLE = "All"
     ARTICLE_SCORE = 60
@@ -36,10 +40,14 @@ class HackerNewsRecipe(BasicNewsRecipe):
     COMMENTS_COUNT = 10
 
     def x_fetch_url(self, url):
-        res = requests.get(url)
-        if (res.status_code < 200 or res.status_code > 299):
-            return None
-        return res.content
+        #res = requests.get(url)
+        #if (res.status_code < 200 or res.status_code > 299):
+        #    return None
+        #return res.content
+        br = self.get_browser()
+        resp = br.open(url)
+        data = resp.read()
+        return data
 
     def x_fetch_url_json(self, url):
         content = self.x_fetch_url(url)
@@ -249,6 +257,13 @@ class HackerNewsRecipe(BasicNewsRecipe):
             })
         return out_articles
 
+    def x_save_comment_url(article):
+        tmp = PersistentTemporaryFile('_fa.html')
+        tmp.write(article["comments_html"])
+        tmp.close()
+        self.temp_files.append(tmp)
+        return tmp.name
+
     def parse_index(self):
         items = self.x_get_articles()
         articles = []
@@ -262,7 +277,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
             })
             articles.append({
                 "title": item["comments_title"],
-                "url": "",
+                "url": self.x_save_comment_url(item),
                 "date": item["date"],
                 "description": item["comments_title"],
                 "content": ""
