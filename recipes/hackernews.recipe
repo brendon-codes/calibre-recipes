@@ -28,7 +28,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
 
     FEED_TITLE = "All"
     ARTICLE_COUNT = 25
-    ARTICLE_SCORE = 60
+    ARTICLE_SCORE = 70
     ARTICLE_TYPES = frozenset([
         "story"
     ])
@@ -39,7 +39,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
         "theatlantic.com",
         "techcrunch.com"
     ]
-    COMMENTS_COUNT = 10
+    COMMENTS_COUNT = 20
+    ARTICLE_DATE_HOURS = 24
 
     def x_fetch_url(self, url):
         #res = requests.get(url)
@@ -231,17 +232,16 @@ class HackerNewsRecipe(BasicNewsRecipe):
         out += "</html>"
         return out
 
-    def x_get_articles(self):
+    def x_fetch_articles(self):
         url = "https://hacker-news.firebaseio.com/v0/topstories.json"
         new_article_ids = self.x_fetch_url_json(url)
         if new_article_ids is None:
             return []
         i = 0
         out_articles = []
+        now = datetime.datetime.utcnow()
         for article_id in new_article_ids:
-            if i >= self.ARTICLE_COUNT:
-                break
-            print("PROCESSING ARTICLE: %s" % article_id)
+            print("FETCHING ARTICLE: %s" % article_id)
             article = self.x_get_article(article_id)
             if article is None:
                 continue
@@ -250,18 +250,44 @@ class HackerNewsRecipe(BasicNewsRecipe):
             article_date = (
                 datetime.datetime.utcfromtimestamp(
                     int(article["time"])
-                ).strftime('%Y-%m-%d %H:%M:%S')
+                )
             )
+            offset = now - article_date
+            cutoff = (self.ARTICLE_DATE_HOURS * 3600)
+            if offset.seconds > cutoff:
+                continue
+            out_articles.append({
+                "id": article["id"],
+                "title": article["title"],
+                "url": article["url"],
+                "score": article["score"],
+                "date": article_date
+            })
+        final_articles = (
+            sorted(
+                out_articles,
+                key=lambda a: a["score"],
+                reverse=True
+            )
+        )
+        limit_articles = final_articles[:self.ARTICLE_COUNT]
+        return limit_articles
+
+    def x_get_articles(self):
+        articles = self.x_fetch_articles()
+        out_articles = []
+        for article in articles:
+            print("PROCESSING ARTICLE" % article["id"])
+            format_date = article["date"].strftime('%Y-%m-%d %H:%M:%S')
             comments_title = "Comments: {title}".format(title=article["title"])
             comments_html = self.x_process_comments(article)
             out_articles.append({
                 "title": article["title"],
                 "url": article["url"],
-                "date": article_date,
+                "date": format_date,
                 "comments_title": comments_title,
                 "comments_html": comments_html
             })
-            i += 1
         return out_articles
 
     def x_save_comment_url(self, article):
