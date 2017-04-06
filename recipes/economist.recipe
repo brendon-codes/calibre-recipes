@@ -10,13 +10,14 @@ from __future__ import (
 from calibre.web.feeds.news import BasicNewsRecipe
 import datetime
 from dateutil import relativedelta
+from dateutil.tz import tzutc
 
 
 class TheEconomistRecipe(BasicNewsRecipe):
     title = "The Economist"
-    oldest_article = 9
+    oldest_article = 13
     max_articles_per_feed = 200
-    auto_cleanup   = True
+    auto_cleanup = True
     use_embedded_content = False
     publication_type = "magazine"
     needs_subscription = True
@@ -31,6 +32,10 @@ class TheEconomistRecipe(BasicNewsRecipe):
         (
             "Leaders",
             "https://www.economist.com/feeds/print-sections/69/leaders.xml"
+        ),
+        (
+            "Letters",
+            "https://www.economist.com/feeds/print-sections/68/letters.xml"
         ),
         (
             "Briefings",
@@ -93,58 +98,79 @@ class TheEconomistRecipe(BasicNewsRecipe):
         )
     ]
 
-    def prepend_feeds(self):
-        ##
-        ## TODO: get cover working as first section
-        ##
-        #return [
-        #    (
-        #        "Cover",
-        #        self.get_cover_url()
-        #    )
-        #]
-        return []
-
     def get_feeds(self):
-        return (
-            self.prepend_feeds() +
-            self.x_feeds
-        )
+        return self.x_feeds
 
-    def get_issue_date_start(self):
-        now = datetime.datetime.now()
-        rel = relativedelta.relativedelta(weekday=relativedelta.FR(-1))
+    def get_issue_date_avail(self):
+        morning = (
+            datetime.datetime.utcnow().replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+                tzinfo=tzutc()
+            )
+        )
+        thursrel = relativedelta.relativedelta(weekday=relativedelta.TH(-1))
+        closest_thurs = (morning + thursrel)
+        availdt = datetime.datetime(
+            year=closest_thurs.year,
+            month=closest_thurs.month,
+            day=closest_thurs.day,
+            hour=21,
+            minute=0,
+            second=0,
+            microsecond=0,
+            tzinfo=tzutc()
+        )
+        nowdt = datetime.datetime.utcnow().replace(tzinfo=tzutc())
+        if nowdt >= availdt:
+            return availdt
+        offset_num = (
+            -2
+            if (nowdt.weekday() == 3)
+            else -1
+        )
+        last_thurs = (
+            relativedelta.relativedelta(weekday=relativedelta.TH(offset_num))
+        )
+        newdt = (availdt + last_thurs)
+        return newdt
+
+    def get_issue_date_publish(self):
+        avail = self.get_issue_date_avail()
         offset = datetime.timedelta(days=1)
-        offdt = ((now + rel) + offset)
+        fri = (avail + offset)
         newdt = datetime.datetime(
-            year=offdt.year,
-            month=offdt.month,
-            day=offdt.day
+            year=fri.year,
+            month=fri.month,
+            day=fri.day,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+            tzinfo=tzutc()
         )
         return newdt
 
     def get_articles_date_start(self):
-        now = datetime.datetime.now()
-        rel = relativedelta.relativedelta(weekday=relativedelta.TH(-1))
+        avail = self.get_issue_date_avail()
         offset = datetime.timedelta(days=5)
-        offdt = ((now + rel) - offset)
+        sat = (avail - offset)
         newdt = datetime.datetime(
-            year=offdt.year,
-            month=offdt.month,
-            day=offdt.day
+            year=sat.year,
+            month=sat.month,
+            day=sat.day,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+            tzinfo=tzutc()
         )
         return newdt
 
     def get_articles_date_end(self):
-        now = datetime.datetime.now()
-        rel = relativedelta.relativedelta(weekday=relativedelta.TH(-1))
-        offset = datetime.timedelta(days=1)
-        offdt = ((now + rel) + offset)
-        newdt = datetime.datetime(
-            year=offdt.year,
-            month=offdt.month,
-            day=offdt.day
-        )
+        newdt = self.get_issue_date_avail()
         return newdt
 
     def get_cover_url(self):
@@ -153,17 +179,20 @@ class TheEconomistRecipe(BasicNewsRecipe):
             "sites/default/files/imagecache/"
             "print-cover-full/print-covers/{date}_cna400.jpg"
         )
-        last_sat = self.get_issue_date_start()
-        dt_str = last_sat.strftime("%Y%m%d")
+        pubdt = self.get_issue_date_publish()
+        print("PUBDT: %s" % pubdt.isoformat())
+        dt_str = pubdt.strftime("%Y%m%d")
         url = root.format(date=dt_str)
         return url
 
     def parse_feeds(self):
         arts_date_start = self.get_articles_date_start()
         arts_date_end = self.get_articles_date_end()
+        print("ARTSSTART: %s" % arts_date_start.isoformat())
+        print("ARTSDATEEND: %s" % arts_date_end.isoformat())
 
         def filt_articles(article):
-            artdt = datetime.datetime(*article.date[:6])
+            artdt = datetime.datetime(*article.date[:6]).replace(tzinfo=tzutc())
             ret = (
                 (artdt >= arts_date_start) and
                 (artdt < arts_date_end)
