@@ -7,48 +7,269 @@ from __future__ import (
     absolute_import,
     print_function
 )
+import json
+from urlparse import urlparse
 from calibre.web.feeds.news import BasicNewsRecipe
 
 
 class HackerNewsRecipe(BasicNewsRecipe):
     title = "Hacker News"
     oldest_article = 2
-    max_articles_per_feed = 200
-    auto_cleanup   = True
+    max_articles_per_feed = 100
+    auto_cleanup = True
     use_embedded_content = False
-    publication_type = "newspaper"
+    publication_type = "blog"
     timefmt = ""
 
-    ##
-    ## hnapp search string:
-    ##
-    ##  score>60 type:story type:link -host:theatlantic.com
-    ##    -host:theeconomist.com -host:nytimes.com
-    ##    -host:bloomberg.com -host:hbr.org
-    ##
-    feeds = [
-        (
-            "Page 1",
-            (
-                "http://hnapp.com/rss?q=score%3E60%20type%3Astory%20"
-                "type%3Alink%20-host%3Atheatlantic.com%20"
-                "-host%3Atheeconomist.com%20-host%3Anytimes.com%20"
-                "-host%3Abloomberg.com%20-host%3Ahbr.org"
-            )
-        ),
-        (
-            "Page 2",
-            (
-                "http://hnapp.com/rss?q=score%3E60%20type%3Astory%20"
-                "type%3Alink%20-host%3Atheatlantic.com%20"
-                "-host%3Atheeconomist.com%20-host%3Anytimes.com%20"
-                "-host%3Abloomberg.com%20-host%3Ahbr.org&page=2"
+    FEED_TITLE = "All"
+    ARTICLE_SCORE = 60
+    ARTICLE_TYPES = frozenset([
+        "story"
+    ])
+    ARTICLE_DOMAINS_EXCLUDE = [
+        "nytimes.com",
+        "bloomberg.com",
+        "economist.com",
+        "theatlantic.com",
+        "techcrunch.com"
+    ]
+    COMMENTS_COUNT = 10
+
+    def x_fetch_url(self, url):
+        res = requests.get(url)
+        if (res.status_code < 200 or res.status_code > 299):
+            return None
+        return res.content
+
+    def x_fetch_url_json(self, url):
+        content = self.x_fetch_url(url)
+        if content is None:
+            return None
+        obj = json.loads(content)
+        return obj
+
+    def x_get_article(self, article_id):
+        base = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
+        url = base.format(id=article_id)
+        article = self.x_fetch_url_json(url)
+        return article
+
+    def x_should_skip_art_score(self, article):
+        return (article["score"] < self.ARTICLE_SCORE)
+
+    def x_should_skip_art_type(self, article):
+        return (article["type"] not in self.ARTICLE_TYPES)
+
+    def x_should_skip_art_domain(self, article):
+        if "url" not in article:
+            return True
+        url = article["url"]
+        parts = urlparse(url)
+        domain = parts.netloc
+        for exc_domain in self.ARTICLE_DOMAINS_EXCLUDE:
+            exc_dotdomain = "".join([".", exc_domain])
+            if (
+                    (exc_domain in domain) or
+                    (exc_dotdomain in domain)
+            ):
+                return True
+        return False
+
+    def x_should_skip_article(self, article):
+        if self.x_should_skip_art_score(article):
+            return True
+        if self.x_should_skip_art_type(article):
+            return True
+        if self.x_should_skip_art_domain(article):
+            return True
+        return False
+
+    def x_get_comments(self, article_id):
+        base = "https://news.ycombinator.com/item?id={id}"
+        url = base.format(id=article_id)
+        content = self.x_fetch_url(url)
+        soup = Soup(content)
+        com_rows = (
+            soup.findAll(
+                "tr",
+                attrs={
+                    "class": "athing comtr "
+                },
+                recursive=True
             )
         )
-    ]
+        comments = []
+        for com_row in com_rows:
+            comment = self.x_parse_comment(com_row)
+            if comment is None:
+                continue
+            comments.append(comment)
+        return comments
 
-    def parse_feeds(self):
-        parsed_feeds = BasicNewsRecipe.parse_feeds(self)
-        for parsed_feed in parsed_feeds:
-            parsed_feed.articles.sort(key=(lambda x: x.date), reverse=True)
-        return parsed_feeds
+    def x_parse_comment(self, com_row):
+        if not com_row.has_key("id"):
+            return None
+        atogg = (
+            com_row.find(
+                "a",
+                attrs={
+                    "class": "togg"
+                }
+            )
+        )
+        if atogg is None:
+            return None
+        if not atogg.has_key("n"):
+            return None
+        span_age = (
+            com_row.find(
+                "span",
+                attrs={
+                    "class": "age"
+                }
+            )
+        )
+        if span_age is None:
+            return None
+        span_age_a = span_age.find("a")
+        if span_age_a is None:
+            return None
+        age = span_age_a.string.strip()
+        span_text = (
+            com_row.find(
+                "span",
+                attrs={
+                    "class": "c00"
+                }
+            )
+        )
+        if span_text is None:
+            return None
+        div_reply = (
+            span_text.find(
+                "div",
+                attrs={
+                    "class": "reply"
+                }
+            )
+        )
+        if div_reply is not None:
+            div_reply.extract()
+        span_empties = span_text.findAll("span")
+        for span_empty in span_empties:
+            if (span_empty.string.strip() == ""):
+                span_empty.extract()
+        text = span_text.renderContents()
+        ##
+        ## Build output
+        ##
+        comment = {}
+        comment["id"] = int(com_row["id"])
+        comment["score"] = int(atogg["n"])
+        comment["age"] = age
+        comment["text"] = text
+        return comment
+
+    def x_filter_comments(self, all_comments):
+        sorted_coms = (
+            sorted(
+                all_comments,
+                key=lambda c: c["score"],
+                reverse=True
+            )
+        )
+        comments = sorted_coms[:self.COMMENTS_COUNT]
+        return comments
+
+    def x_process_comments(self, article):
+        all_comments = self.x_get_comments(article["id"])
+        comments = self.x_filter_comments(all_comments)
+        html = self.x_format_comments(article, comments)
+        return html
+
+    def x_format_comments(self, article, comments):
+        page_title = "Comments: {title}".format(title=article["title"])
+        out = "<!doctype html>"
+        out += "<html lang='en'>"
+        out += "<head>"
+        out += "<meta charset='utf-8'>"
+        out += (
+            "<title>{title}</title>".format(title=page_title)
+        )
+        out += "</head>"
+        out += "<body>"
+        out += (
+            "<h1>{title}</h1>".format(title=page_title)
+        )
+        out += "<main>"
+        for comment in comments:
+            out += "<article>"
+            out += "<header>"
+            out += (
+                "<h2>Score: {score} - {age}</h2>".format(
+                    score=comment["score"],
+                    age=comment["age"]
+                )
+            )
+            out += "</header>"
+            out += "<div>"
+            out += comment["text"]
+            out += "</div>"
+            out += "</article>"
+        out += "</main>"
+        out += "</body>"
+        out += "</html>"
+        return out
+
+    def x_get_articles(self):
+        url = "https://hacker-news.firebaseio.com/v0/topstories.json"
+        new_article_ids = self.x_fetch_url_json(url)
+        if new_article_ids is None:
+            return []
+        out_articles = []
+        for article_id in new_article_ids:
+            article = self.x_get_article(article_id)
+            if article is None:
+                continue
+            if should_skip_article(article):
+                continue
+            article_date = (
+                datetime.datetime.utcfromtimestamp(
+                    int(article["time"])
+                ).strftime('%Y-%m-%d %H:%M:%S')
+            )
+            comments_title = "Comments: {title}".format(title=article["title"])
+            comments_html = process_comments(article)
+            out_articles.append({
+                "title": article["title"],
+                "url": article["url"],
+                "date": article_date,
+                "comments_title": comments_title,
+                "comments_html": comments_html
+            })
+        return out_articles
+
+    def parse_index(self):
+        items = self.x_get_articles()
+        articles = []
+        for item in items:
+            articles.append({
+                "title": item["title"],
+                "url": item["url"],
+                "date": item["date"],
+                "description": item["title"],
+                "content": ""
+            })
+            articles.append({
+                "title": item["comments_title"],
+                "url": "",
+                "date": item["date"],
+                "description": item["comments_title"],
+                "content": ""
+            })
+        feeds = []
+        feeds.append((
+            self.FEED_TITLE,
+            articles
+        ))
+        return feeds
