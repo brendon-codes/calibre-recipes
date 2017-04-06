@@ -8,9 +8,10 @@ from __future__ import (
     print_function
 )
 import json
+import datetime
 from urlparse import urlparse
 
-from calibre.ebooks.BeautifulSoup import BeautifulSoup
+from calibre.ebooks.BeautifulSoup import BeautifulSoup as Soup
 from calibre.ptempfile import PersistentTemporaryFile
 from calibre.web.feeds.news import BasicNewsRecipe
 
@@ -26,6 +27,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     temp_files = []
 
     FEED_TITLE = "All"
+    ARTICLE_COUNT = 25
     ARTICLE_SCORE = 60
     ARTICLE_TYPES = frozenset([
         "story"
@@ -214,7 +216,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
             out += "<article>"
             out += "<header>"
             out += (
-                "<h2>Score: {score} - {age}</h2>".format(
+                "<h2>Score: {score}; Time: {age}</h2>".format(
                     score=comment["score"],
                     age=comment["age"]
                 )
@@ -234,12 +236,16 @@ class HackerNewsRecipe(BasicNewsRecipe):
         new_article_ids = self.x_fetch_url_json(url)
         if new_article_ids is None:
             return []
+        i = 0
         out_articles = []
         for article_id in new_article_ids:
+            if i >= self.ARTICLE_COUNT:
+                break
+            print("PROCESSING ARTICLE: %s" % article_id)
             article = self.x_get_article(article_id)
             if article is None:
                 continue
-            if should_skip_article(article):
+            if self.x_should_skip_article(article):
                 continue
             article_date = (
                 datetime.datetime.utcfromtimestamp(
@@ -247,7 +253,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 ).strftime('%Y-%m-%d %H:%M:%S')
             )
             comments_title = "Comments: {title}".format(title=article["title"])
-            comments_html = process_comments(article)
+            comments_html = self.x_process_comments(article)
             out_articles.append({
                 "title": article["title"],
                 "url": article["url"],
@@ -255,14 +261,16 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 "comments_title": comments_title,
                 "comments_html": comments_html
             })
+            i += 1
         return out_articles
 
-    def x_save_comment_url(article):
+    def x_save_comment_url(self, article):
         tmp = PersistentTemporaryFile('_fa.html')
         tmp.write(article["comments_html"])
         tmp.close()
         self.temp_files.append(tmp)
-        return tmp.name
+        url = "".join(["file://", tmp.name])
+        return url
 
     def parse_index(self):
         items = self.x_get_articles()
