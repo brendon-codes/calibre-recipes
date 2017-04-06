@@ -279,10 +279,16 @@ class HackerNewsRecipe(BasicNewsRecipe):
         for article in articles:
             print("PROCESSING ARTICLE" % article["id"])
             format_date = article["date"].strftime('%Y-%m-%d %H:%M:%S')
+            article_title = (
+                "[{score}] {title}".format(
+                    score=article["score"],
+                    title=article["title"]
+                )
+            )
             comments_title = "Comments: {title}".format(title=article["title"])
             comments_html = self.x_process_comments(article)
             out_articles.append({
-                "title": article["title"],
+                "title": article_title,
                 "url": article["url"],
                 "date": format_date,
                 "comments_title": comments_title,
