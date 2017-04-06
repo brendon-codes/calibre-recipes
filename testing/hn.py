@@ -176,34 +176,46 @@ def filter_comments(all_comments):
     return comments
 
 
-def process_comments(article_id):
-    all_comments = get_comments(article_id)
+def process_comments(article):
+    all_comments = get_comments(article["id"])
     comments = filter_comments(all_comments)
-    html = format_comments(comments)
+    html = format_comments(article, comments)
     return html
 
 
-def format_comments(comments):
+def format_comments(article, comments):
+    page_title = "Comments: {title}".format(title=article["title"])
     out = "<!doctype html>"
     out += "<html lang='en'>"
-<head>
-  <meta charset="utf-8">
-
-  <title>The HTML5 Herald</title>
-  <meta name="description" content="The HTML5 Herald">
-  <meta name="author" content="SitePoint">
-
-  <link rel="stylesheet" href="css/styles.css?v=1.0">
-
-  <!--[if lt IE 9]>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.js"></script>
-  <![endif]-->
-</head>
-
-<body>
-  <script src="js/scripts.js"></script>
-</body>
-</html>
+    out += "<head>"
+    out += "<meta charset='utf-8'>"
+    out += (
+        "<title>{title}</title>".format(title=page_title)
+    )
+    out += "</head>"
+    out += "<body>"
+    out += (
+        "<h1>{title}</h1>".format(title=page_title)
+    )
+    out += "<main>"
+    for comment in comments:
+        out += "<article>"
+        out += "<header>"
+        out += (
+            "<h2>Score: {score} - {age}</h2>".format(
+                score=comment["score"],
+                age=comment["age"]
+            )
+        )
+        out += "</header>"
+        out += "<div>"
+        out += comment["text"]
+        out += "</div>"
+        out += "</article>"
+    out += "</main>"
+    out += "</body>"
+    out += "</html>"
+    return out
 
 
 def get_articles():
@@ -217,9 +229,8 @@ def get_articles():
             continue
         if should_skip_article(article):
             continue
-        comments_html = process_comments(article["id"])
+        comments_html = process_comments(article)
         print(comments_html)
-        break
     return []
 
 
