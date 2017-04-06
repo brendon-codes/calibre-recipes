@@ -14,6 +14,12 @@ from dateutil.tz import tzutc
 
 
 class TheEconomistRecipe(BasicNewsRecipe):
+    """
+    Keep in mind that if you run this recipe on a Thursday
+    before 21:00:00+00, you will not get all the full accurate
+    data.  This is just due to how the RSS feeds and content are
+    structured.
+    """
     title = "The Economist"
     oldest_article = 13
     max_articles_per_feed = 200
@@ -23,6 +29,8 @@ class TheEconomistRecipe(BasicNewsRecipe):
     needs_subscription = True
     handle_gzip = True
     timefmt = ""
+
+    x_exclude_datefilter = []
 
     x_feeds = [
         (
@@ -153,6 +161,15 @@ class TheEconomistRecipe(BasicNewsRecipe):
         )
         return newdt
 
+    def get_issue_date_cover(self):
+        """
+        Get the date for the cover
+        """
+        pubdt = self.get_issue_date_publish()
+        offset = datetime.timedelta(days=1)
+        sat = (pubdt + offset)
+        return sat
+
     def get_articles_date_start(self):
         avail = self.get_issue_date_avail()
         offset = datetime.timedelta(days=5)
@@ -179,17 +196,18 @@ class TheEconomistRecipe(BasicNewsRecipe):
             "sites/default/files/imagecache/"
             "print-cover-full/print-covers/{date}_cna400.jpg"
         )
-        pubdt = self.get_issue_date_publish()
-        print("PUBDT: %s" % pubdt.isoformat())
+        pubdt = self.get_issue_date_cover()
+        #print("PUBDT: %s" % pubdt.isoformat())
         dt_str = pubdt.strftime("%Y%m%d")
         url = root.format(date=dt_str)
         return url
 
     def parse_feeds(self):
+        exclude_filt = frozenset(self.x_exclude_datefilter)
         arts_date_start = self.get_articles_date_start()
         arts_date_end = self.get_articles_date_end()
-        print("ARTSSTART: %s" % arts_date_start.isoformat())
-        print("ARTSDATEEND: %s" % arts_date_end.isoformat())
+        #print("ARTSSTART: %s" % arts_date_start.isoformat())
+        #print("ARTSDATEEND: %s" % arts_date_end.isoformat())
 
         def filt_articles(article):
             artdt = datetime.datetime(*article.date[:6]).replace(tzinfo=tzutc())
@@ -200,7 +218,8 @@ class TheEconomistRecipe(BasicNewsRecipe):
             return ret
 
         def map_feeds(feed):
-            feed.articles = filter(filt_articles, feed.articles)
+            if feed.title not in exclude_filt:
+                feed.articles = filter(filt_articles, feed.articles)
             return feed
 
         feeds_orig = BasicNewsRecipe.parse_feeds(self)
