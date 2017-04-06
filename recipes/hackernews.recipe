@@ -277,7 +277,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         articles = self.x_fetch_articles()
         out_articles = []
         for article in articles:
-            print("PROCESSING ARTICLE" % article["id"])
+            print("PROCESSING ARTICLE: %s" % article["id"])
             format_date = article["date"].strftime('%Y-%m-%d %H:%M:%S')
             article_title = (
                 "[{score}] {title}".format(
