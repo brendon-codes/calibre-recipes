@@ -26,11 +26,11 @@ class BloombergRecipe(BasicNewsRecipe):
         (
             "Markets",
             "https://www.bloomberg.com/markets"
-        ),
-        (
-            "Technology",
-            "https://www.bloomberg.com/technology"
         )
+        #(
+        #    "Technology",
+        #    "https://www.bloomberg.com/technology"
+        #)
     ]
 
     def parse_index(self):
