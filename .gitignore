@@ -3,3 +3,4 @@ __pycache__/
 /debug/
 /*.epub
 /hidden/
+/testing/env/
