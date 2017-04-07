@@ -194,7 +194,7 @@ class TheEconomistRecipe(BasicNewsRecipe):
         root = (
             "https://cdn.static-economist.com/"
             "sites/default/files/imagecache/"
-            "print-cover-full/print-covers/{date}_cna400.jpg"
+            "print-cover-full/print-covers/{date}_cuk400.jpg"
         )
         pubdt = self.get_issue_date_cover()
         #print("PUBDT: %s" % pubdt.isoformat())
