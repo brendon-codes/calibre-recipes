@@ -27,12 +27,42 @@ class TheEconomistRecipe(BasicNewsRecipe):
     handle_gzip = True
     timefmt = ""
 
-    BASE_URL = "https://www.economist.com"
+    x_base_url = "https://www.economist.com"
+    x_page_soup = None
 
-    def x_setup_browser(self):
-        br = self.get_browser()
+    def __init__(self, *args):
+        ret = super(TheEconomistRecipe, self).__init__(*args)
+        self.x_set_page_soup()
+        return ret
+
+    def get_cover_url(self):
+        soup = self.x_page_soup
+        imgelm = (
+            soup.find(
+                "img",
+                attrs={
+                    "class": "print-edition__cover-widget__image"
+                }
+            )
+        )
+        if imgelm is None:
+            return None
+        if not imgelm.has_key("src"):
+            return None
+        path = imgelm["src"]
+        src = "".join([self.x_base_url, path])
+        print("IMAGE: %s" % src)
+        return src
+
+    def x_set_page_soup(self):
+        content = self.x_fetch_page()
+        self.x_page_soup = Soup(content)
+        return True
+
+    def get_browser(self):
+        br = super(TheEconomistRecipe, self).get_browser()
         if (self.username is not None) and (self.password is not None):
-            login_url = "/".join([self.BASE_URL, "user", "login"])
+            login_url = "/".join([self.x_base_url, "user", "login"])
             br.open(login_url)
             br.select_form(nr=1)
             br["name"] = self.username
@@ -41,18 +71,18 @@ class TheEconomistRecipe(BasicNewsRecipe):
             br.submit()
         return br
 
-    def x_fetch_url(self, br, url):
-        resp = br.open(url)
+    def x_fetch_url(self, url):
+        resp = self.browser.open(url)
         data = resp.read()
         return data
 
-    def x_fetch_page(self, br):
-        start_url = "/".join([self.BASE_URL, "printedition"])
-        content = self.x_fetch_url(br, start_url)
+    def x_fetch_page(self):
+        start_url = "/".join([self.x_base_url, "printedition"])
+        content = self.x_fetch_url(start_url)
         return content
 
-    def x_fetch_articles(self, content):
-        soup = Soup(content)
+    def x_fetch_articles(self):
+        soup = self.x_page_soup
         divmain = (
             soup.find(
                 "div",
@@ -118,7 +148,7 @@ class TheEconomistRecipe(BasicNewsRecipe):
             for link in links:
                 if not link.has_key("href"):
                     continue
-                url = "".join([self.BASE_URL, link["href"]])
+                url = "".join([self.x_base_url, link["href"]])
                 spanflytitle = (
                     link.find(
                         "span",
@@ -158,9 +188,7 @@ class TheEconomistRecipe(BasicNewsRecipe):
         return feeds
 
     def parse_index(self):
-        br = self.x_setup_browser()
-        content = self.x_fetch_page(br)
-        res = self.x_fetch_articles(content)
+        res = self.x_fetch_articles()
         if res is None:
             return []
         return res
