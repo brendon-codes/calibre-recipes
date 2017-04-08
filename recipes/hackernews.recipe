@@ -255,7 +255,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
             )
             offset = now - article_date
             cutoff = (self.ARTICLE_DATE_HOURS * 3600)
-            if offset.seconds > cutoff:
+            offsecs = int(offset.total_seconds())
+            if offsecs > cutoff:
                 continue
             out_articles.append({
                 "id": article["id"],
