@@ -18,6 +18,7 @@ from calibre.ebooks.BeautifulSoup import BeautifulSoup as Soup
 
 class TheEconomistRecipe(BasicNewsRecipe):
     title = "The Economist"
+    __author__ = "Brendon Crawford"
     oldest_article = 13
     max_articles_per_feed = 200
     auto_cleanup = True
@@ -28,15 +29,9 @@ class TheEconomistRecipe(BasicNewsRecipe):
     timefmt = ""
 
     x_base_url = "https://www.economist.com"
-    x_page_soup = None
-
-    def __init__(self, *args):
-        ret = super(TheEconomistRecipe, self).__init__(*args)
-        self.x_set_page_soup()
-        return ret
 
     def get_cover_url(self):
-        soup = self.x_page_soup
+        soup = self.x_get_page_soup()
         imgelm = (
             soup.find(
                 "img",
@@ -54,10 +49,10 @@ class TheEconomistRecipe(BasicNewsRecipe):
         print("IMAGE: %s" % src)
         return src
 
-    def x_set_page_soup(self):
+    def x_get_page_soup(self):
         content = self.x_fetch_page()
-        self.x_page_soup = Soup(content)
-        return True
+        soup = Soup(content)
+        return soup
 
     def get_browser(self):
         br = super(TheEconomistRecipe, self).get_browser()
@@ -82,7 +77,7 @@ class TheEconomistRecipe(BasicNewsRecipe):
         return content
 
     def x_fetch_articles(self):
-        soup = self.x_page_soup
+        soup = self.x_get_page_soup()
         divmain = (
             soup.find(
                 "div",

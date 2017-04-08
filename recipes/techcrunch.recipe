@@ -12,6 +12,7 @@ from calibre.web.feeds.news import BasicNewsRecipe
 
 class TechCrunchRecipe(BasicNewsRecipe):
     title = "TechCrunch"
+    __author__ = "Brendon Crawford"
     oldest_article = 2
     max_articles_per_feed = 200
     auto_cleanup   = True
