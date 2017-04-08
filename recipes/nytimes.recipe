@@ -38,8 +38,8 @@ class NYTimesRecipe(BasicNewsRecipe):
         "opinion"
     ]
 
-    def setup_browser(self):
-        br = self.get_browser()
+    def get_browser(self):
+        br = super(NYTimesRecipe, self).get_browser()
         if (self.username is not None) and (self.password is not None):
             br.open("https://www.nytimes.com/auth/login")
             br.select_form(nr=0)
@@ -48,14 +48,14 @@ class NYTimesRecipe(BasicNewsRecipe):
             br.submit()
         return br
 
-    def get_structure(self, br):
+    def get_structure(self):
         dt = datetime.datetime.now()
         struct_url = self.x_struct_url_base.format(**{
             "year": dt.year,
             "month": dt.month,
             "day": dt.day
         })
-        resp = br.open(struct_url)
+        resp = self.browser.open(struct_url)
         data = resp.read()
         obj = dict(json.loads(data))
         return obj
@@ -116,8 +116,7 @@ class NYTimesRecipe(BasicNewsRecipe):
 
     def parse_index(self):
         outfeeds = []
-        br = self.setup_browser()
-        mainobj = self.get_structure(br)
+        mainobj = self.get_structure()
         sections = self.get_sections(mainobj)
         outfeeds = self.get_feeds(sections)
         return outfeeds
