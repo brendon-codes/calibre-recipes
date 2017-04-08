@@ -27,28 +27,44 @@ class TheEconomistRecipe(BasicNewsRecipe):
     handle_gzip = True
     timefmt = ""
 
-    def x_fetch_url(self, url):
+    BASE_URL = "https://www.economist.com"
+
+    def x_setup_browser(self):
         br = self.get_browser()
+        if (self.username is not None) and (self.password is not None):
+            login_url = "/".join([self.BASE_URL, "user", "login"])
+            br.open(login_url)
+            br.select_form(nr=1)
+            br["name"] = self.username
+            br["pass"] = self.password
+            br["persistent_login"] = ["1"]
+            br.submit()
+        return br
+
+    def x_fetch_url(self, br, url):
         resp = br.open(url)
         data = resp.read()
         return data
 
-    def x_fetch_articles(self):
-        base_url = "http://www.economist.com"
-        start_url = "/".join([base_url, "printedition"])
-        content = self.x_fetch_url(start_url)
+    def x_fetch_page(self, br):
+        start_url = "/".join([self.BASE_URL, "printedition"])
+        content = self.x_fetch_url(br, start_url)
+        return content
+
+    def x_fetch_articles(self, content):
         soup = Soup(content)
         divmain = (
             soup.find(
                 "div",
                 attrs={
                     "class": (
-                        "div.main-content__main-column print-edition__content"
+                        "main-content__main-column print-edition__content"
                     )
                 }
             )
         )
         if divmain is None:
+            print("DIVMAIN none")
             return None
         ul = (
             divmain.find(
@@ -59,6 +75,7 @@ class TheEconomistRecipe(BasicNewsRecipe):
             )
         )
         if ul is None:
+            print("UL none")
             return None
         items = (
             ul.findAll(
@@ -70,18 +87,20 @@ class TheEconomistRecipe(BasicNewsRecipe):
             )
         )
         if (items is None) or (len(items) == 0):
+            print("ITEMS none")
             return None
         feeds = []
         for item in items:
             divtitle = (
                 item.find(
                     "div",
-                    atts={
+                    attrs={
                         "class": "list__title"
                     }
                 )
             )
             if divtitle is None:
+                print("DIVTITLE none")
                 continue
             feed_title = divtitle.string.strip()
             links = (
@@ -95,10 +114,11 @@ class TheEconomistRecipe(BasicNewsRecipe):
             )
             if (links is None) or (len(links) == 0):
                 continue
+            articles = []
             for link in links:
                 if not link.has_key("href"):
                     continue
-                url = "/".join([base_url, link["href"]])
+                url = "".join([self.BASE_URL, link["href"]])
                 spanflytitle = (
                     link.find(
                         "span",
@@ -138,7 +158,9 @@ class TheEconomistRecipe(BasicNewsRecipe):
         return feeds
 
     def parse_index(self):
-        res = self.x_fetch_articles()
+        br = self.x_setup_browser()
+        content = self.x_fetch_page(br)
+        res = self.x_fetch_articles(content)
         if res is None:
             return []
         return res
