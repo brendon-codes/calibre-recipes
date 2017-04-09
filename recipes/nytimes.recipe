@@ -12,6 +12,8 @@ import sys
 import datetime
 import json
 import pprint
+
+from calibre.ptempfile import PersistentTemporaryFile
 from calibre.web.feeds.news import BasicNewsRecipe
 
 
@@ -20,16 +22,22 @@ class NYTimesRecipe(BasicNewsRecipe):
     __author__ = "Brendon Crawford"
     oldest_article = 2
     max_articles_per_feed = 200
-    auto_cleanup   = True
+    auto_cleanup = True
     use_embedded_content = False
     publication_type = "newspaper"
     timefmt = ""
     needs_subscription = True
-    feeds = []
+    remove_javascript = True
+    no_stylesheets = True
 
+    temp_files = []
     x_struct_url_base = (
         "http://app.nytimes.com/data/"
         "{year:04d}/{month:02d}/{day:02d}/structure"
+    )
+    x_art_url_base = (
+        "http://app.nytimes.com/data/"
+        "{year:04d}/{month:02d}/{day:02d}/article-bodies?ids={id}"
     )
     x_sections = [
         "nytfrontpage",
@@ -49,19 +57,23 @@ class NYTimesRecipe(BasicNewsRecipe):
             br.submit()
         return br
 
-    def get_structure(self):
+    def x_fetch_url_json(self, url):
+        resp = self.browser.open(url)
+        data = resp.read()
+        obj = dict(json.loads(data))
+        return obj
+
+    def x_get_structure(self):
         dt = datetime.datetime.now()
         struct_url = self.x_struct_url_base.format(**{
             "year": dt.year,
             "month": dt.month,
             "day": dt.day
         })
-        resp = self.browser.open(struct_url)
-        data = resp.read()
-        obj = dict(json.loads(data))
+        obj = self.x_fetch_url_json(struct_url)
         return obj
 
-    def get_sections(self, mainobj):
+    def x_get_sections(self, mainobj):
         out = []
         sections = mainobj["sections"]
         for section in sections:
@@ -71,7 +83,7 @@ class NYTimesRecipe(BasicNewsRecipe):
             out.append(section)
         return out
 
-    def extract_date_from_url(self, url):
+    def x_extract_date_from_url(self, url):
         patt = (
             r"(?u)"
             r"^http\u003A//www\u002Enytimes\u002Ecom"
@@ -87,25 +99,84 @@ class NYTimesRecipe(BasicNewsRecipe):
         month = int(obj["month"])
         day = int(obj["day"])
         dt = datetime.datetime(year=year, month=month, day=day)
-        out = dt.strftime("%Y-%m-%d")
-        return out
+        return dt
 
-    def extract_authors(self, feed_article):
+    def x_extract_authors(self, feed_article):
         if "authors" not in feed_article:
             return ""
         return ", ".join(feed_article["authors"])
 
-    def get_feeds(self, sections):
+    def x_save_article_url(self, article):
+        tmp = PersistentTemporaryFile('_fa.html')
+        tmp.write(article["comments_html"])
+        tmp.close()
+        self.temp_files.append(tmp)
+        url = "".join(["file://", tmp.name])
+        return url
+
+    def x_fetch_art_body(self, article_id):
+        dt = datetime.datetime.now()
+        art_url = self.x_art_url_base.format(**{
+            "year": dt.year,
+            "month": dt.month,
+            "day": dt.day,
+            "id": article_id
+        })
+        obj = self.x_fetch_url_json(art_url)
+        html = obj[article_id]
+        return html
+
+    def x_build_art_html(self, article, art_html):
+        out = "<!doctype html>"
+        out += "<html lang='en'>"
+        out += "<head>"
+        out += "<meta charset='utf-8' />"
+        out += (
+            "<title>{title}</title>".format(title=article["headline"])
+        )
+        out += "</head>"
+        out += "<body>"
+        out += "<article>"
+        out += "<header>"
+        out += "<h1>{title}</h1>".format(title=article["headline"])
+        if "byline" in article:
+            out += "<h2>{byline}</h2>".format(byline=article["byline"])
+        out += "</header>"
+        out += "<div>"
+        out += art_html
+        out += "</div>"
+        out += "</article>"
+        out += "</body>"
+        out += "</html>"
+        return out
+
+    def x_save_article_url(self, art_html):
+        tmp = PersistentTemporaryFile('_fa.html')
+        tmp.write(art_html)
+        tmp.close()
+        self.temp_files.append(tmp)
+        url = "".join(["file://", tmp.name])
+        return url
+
+    def x_extract_feeds(self, sections):
         outfeeds = []
         for section in sections:
             feedtitle = section["friendlyName"]
             articles = []
             for feed_article in section["articles"]:
+                article_id = feed_article["id"]
+                art_date = self.x_extract_date_from_url(feed_article["wwwUrl"])
+                art_date_str = art_date.strftime("%Y-%m-%d")
+                art_content = self.x_fetch_art_body(article_id)
+                art_html = self.x_build_art_html(feed_article, art_content)
+                art_url = self.x_save_article_url(art_html)
                 article = {
                     "title": feed_article["headline"],
-                    "url": feed_article["wwwUrl"],
-                    "date": self.extract_date_from_url(feed_article["wwwUrl"]),
-                    "author": self.extract_authors(feed_article)
+                    "url": art_url,
+                    "date": art_date_str,
+                    "author": self.x_extract_authors(feed_article),
+                    "description": feed_article["headline"],
+                    "content": ""
                 }
                 articles.append(article)
             if len(articles) > 0:
@@ -117,7 +188,7 @@ class NYTimesRecipe(BasicNewsRecipe):
 
     def parse_index(self):
         outfeeds = []
-        mainobj = self.get_structure()
-        sections = self.get_sections(mainobj)
-        outfeeds = self.get_feeds(sections)
+        mainobj = self.x_get_structure()
+        sections = self.x_get_sections(mainobj)
+        outfeeds = self.x_extract_feeds(sections)
         return outfeeds
