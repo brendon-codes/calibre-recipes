@@ -282,7 +282,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         out_articles = []
         now = datetime.datetime.utcnow().replace(tzinfo=tz.tzutc())
         for article_id in new_article_ids:
-            print("FETCHING ARTICLE: %s" % article_id)
+            self.report_progress(0, "Fetching Article: %s" % article_id)
             article = self.x_get_article(article_id)
             if article is None:
                 continue
@@ -325,7 +325,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         articles = self.x_fetch_articles()
         out_articles = []
         for article in articles:
-            print("PROCESSING ARTICLE: %s" % article["id"])
+            self.report_progress(0, "Processing Article: %s" % article["id"])
             format_date = article["date"].strftime('%Y-%m-%d %H:%M:%S')
             article_title = (
                 "[{score}] {title}".format(
