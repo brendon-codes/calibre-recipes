@@ -26,6 +26,9 @@ class HackerNewsRecipe(BasicNewsRecipe):
     publication_type = "blog"
     timefmt = ""
     temp_files = []
+    auto_cleanup_keep = (
+        "//article[@id='hn-comments'] | //article[@id='hn-comments']::*"
+    )
 
     FEED_TITLE = "All"
     ARTICLE_COUNT = 25
@@ -41,13 +44,10 @@ class HackerNewsRecipe(BasicNewsRecipe):
         "techcrunch.com"
     ]
     COMMENTS_COUNT = 20
+    COMMENT_SCORE = 2
     ARTICLE_DATE_HOURS = 24
 
     def x_fetch_url(self, url):
-        #res = requests.get(url)
-        #if (res.status_code < 200 or res.status_code > 299):
-        #    return None
-        #return res.content
         br = self.get_browser()
         resp = br.open(url)
         data = resp.read()
@@ -96,7 +96,66 @@ class HackerNewsRecipe(BasicNewsRecipe):
             return True
         return False
 
-    def x_get_comments(self, article_id):
+    def x_fetch_api_comments(self, comments_map, pre_comment_ids):
+        base = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
+        comments = []
+        pre_comments = []
+        comment_ids = []
+        outer = 0
+        for pre_comment_id in pre_comment_ids:
+            if pre_comment_id not in comments_map:
+                continue
+            pre_comments.append({
+                "id": pre_comment_id,
+                "score": comments_map[pre_comment_id]
+            })
+        outer_comments = self.x_filter_comments(pre_comments)
+        for outer_comment in outer_comments:
+            if outer > 20:
+                break
+            comment_id = outer_comment["id"]
+            if comment_id not in comments_map:
+                continue
+            url = base.format(id=comment_id)
+            comment_json = self.x_fetch_url_json(url)
+            if comment_json is None:
+                continue
+            comments.append({
+                "id": comment_id,
+                "score": comments_map[comment_id],
+                "date": (
+                    datetime.datetime.utcfromtimestamp(
+                        int(comment_json["time"])
+                    )
+                ),
+                "depth": 1,
+                "text": comment_json["text"]
+            })
+            outer += 1
+            inner = 0
+            for subcomment_id in comment_json["kids"]:
+                if inner > 2:
+                    break
+                if subcomment_id not in comments_map:
+                    continue
+                suburl = base.format(id=subcomment_id)
+                subcomment_json = self.x_fetch_url_json(suburl)
+                comments.append({
+                    "id": subcomment_id,
+                    "score": comments_map[subcomment_id],
+                    "date": (
+                        datetime.datetime.utcfromtimestamp(
+                            int(subcomment_json["time"])
+                        )
+                    ),
+                    "depth": 2,
+                    "text": subcomment_json["text"]
+                })
+                inner += 1
+        return comments
+
+
+    def x_get_comments_map(self, article_id):
         base = "https://news.ycombinator.com/item?id={id}"
         url = base.format(id=article_id)
         content = self.x_fetch_url(url)
@@ -110,12 +169,12 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 recursive=True
             )
         )
-        comments = []
+        comments = {}
         for com_row in com_rows:
             comment = self.x_parse_comment(com_row)
             if comment is None:
                 continue
-            comments.append(comment)
+            comments[comment["id"]] = comment["score"]
         return comments
 
     def x_parse_comment(self, com_row):
@@ -133,53 +192,12 @@ class HackerNewsRecipe(BasicNewsRecipe):
             return None
         if not atogg.has_key("n"):
             return None
-        span_age = (
-            com_row.find(
-                "span",
-                attrs={
-                    "class": "age"
-                }
-            )
-        )
-        if span_age is None:
-            return None
-        span_age_a = span_age.find("a")
-        if span_age_a is None:
-            return None
-        age = span_age_a.string.strip()
-        span_text = (
-            com_row.find(
-                "span",
-                attrs={
-                    "class": "c00"
-                }
-            )
-        )
-        if span_text is None:
-            return None
-        div_reply = (
-            span_text.find(
-                "div",
-                attrs={
-                    "class": "reply"
-                }
-            )
-        )
-        if div_reply is not None:
-            div_reply.extract()
-        span_empties = span_text.findAll("span")
-        for span_empty in span_empties:
-            if (span_empty.string.strip() == ""):
-                span_empty.extract()
-        text = span_text.renderContents()
         ##
         ## Build output
         ##
         comment = {}
         comment["id"] = int(com_row["id"])
         comment["score"] = int(atogg["n"])
-        comment["age"] = age
-        comment["text"] = text
         return comment
 
     def x_filter_comments(self, all_comments):
@@ -190,47 +208,55 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 reverse=True
             )
         )
-        comments = sorted_coms[:self.COMMENTS_COUNT]
+        filt_comments = (
+            filter(lambda c: c["score"] >= self.COMMENT_SCORE, sorted_coms)
+        )
+        comments = filt_comments[:self.COMMENTS_COUNT]
         return comments
 
     def x_process_comments(self, article):
-        all_comments = self.x_get_comments(article["id"])
-        comments = self.x_filter_comments(all_comments)
+        comments_map = self.x_get_comments_map(article["id"])
+        comments = (
+            self.x_fetch_api_comments(comments_map, article["comment_ids"])
+        )
         html = self.x_format_comments(article, comments)
         return html
 
     def x_format_comments(self, article, comments):
         page_title = "Comments: {title}".format(title=article["title"])
-        out = "<!doctype html>"
-        out += "<html lang='en'>"
-        out += "<head>"
-        out += "<meta charset='utf-8'>"
+        out = "<!doctype html>\n"
+        out += "<html lang='en'>\n"
+        out += "<head>\n"
+        out += "<meta charset='utf-8' />\n"
         out += (
-            "<title>{title}</title>".format(title=page_title)
+            "<title>{title}</title>\n".format(title=page_title)
         )
-        out += "</head>"
-        out += "<body>"
+        out += "</head>\n"
+        out += "<body>\n"
+        out += "<article id='hn-comments'>\n"
         out += (
-            "<h1>{title}</h1>".format(title=page_title)
+            "<h1>{title}</h1>\n".format(title=page_title)
         )
-        out += "<main>"
+        out += "<div>\n\n"
         for comment in comments:
-            out += "<article>"
-            out += "<header>"
+            stars = " ".join(map(lambda x: "*", xrange(comment["depth"])))
+            out += "<div>\n"
             out += (
-                "<h2>Score: {score}; Time: {age}</h2>".format(
+                "<h3>{stars} | {score} | {date}</h3>\n".format(
+                    stars=stars,
                     score=comment["score"],
-                    age=comment["age"]
+                    date=comment["date"].strftime('%Y-%m-%d %H:%M:%S')
                 )
             )
-            out += "</header>"
-            out += "<div>"
+            out += "<div>\n"
             out += comment["text"]
-            out += "</div>"
-            out += "</article>"
-        out += "</main>"
-        out += "</body>"
-        out += "</html>"
+            out += "\n"
+            out += "</div>\n"
+            out += "</div>\n\n"
+        out += "</div>\n"
+        out += "</article>\n"
+        out += "</body>\n"
+        out += "</html>\n"
         return out
 
     def x_fetch_articles(self):
@@ -263,8 +289,10 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 "title": article["title"],
                 "url": article["url"],
                 "score": article["score"],
-                "date": article_date
+                "date": article_date,
+                "comment_ids": article["kids"]
             })
+            i += 1
         final_articles = (
             sorted(
                 out_articles,
@@ -287,7 +315,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
                     title=article["title"]
                 )
             )
-            comments_title = "Comments: {title}".format(title=article["title"])
+            comments_title = "[Comments] {title}".format(title=article["title"])
             comments_html = self.x_process_comments(article)
             out_articles.append({
                 "title": article_title,
@@ -296,6 +324,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 "comments_title": comments_title,
                 "comments_html": comments_html
             })
+        #print(out_articles)
         return out_articles
 
     def x_save_comment_url(self, article):
