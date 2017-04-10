@@ -38,11 +38,11 @@ class HackerNewsRecipe(BasicNewsRecipe):
         "story"
     ])
     ARTICLE_DOMAINS_EXCLUDE = [
-        "nytimes.com",
-        "bloomberg.com",
-        "economist.com",
-        "theatlantic.com",
-        "techcrunch.com"
+        # "nytimes.com",
+        # "bloomberg.com",
+        # "economist.com",
+        # "theatlantic.com",
+        # "techcrunch.com"
     ]
     COMMENTS_1_COUNT = 12
     COMMENTS_2_COUNT = 2
