@@ -9,6 +9,7 @@ from __future__ import (
 )
 import json
 import datetime
+from dateutil import tz
 from urlparse import urlparse
 
 from calibre.ebooks.BeautifulSoup import BeautifulSoup as Soup
@@ -43,7 +44,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
         "theatlantic.com",
         "techcrunch.com"
     ]
-    COMMENTS_COUNT = 20
+    COMMENTS_1_COUNT = 12
+    COMMENTS_2_COUNT = 2
     COMMENT_SCORE = 2
     ARTICLE_DATE_HOURS = 24
 
@@ -96,30 +98,23 @@ class HackerNewsRecipe(BasicNewsRecipe):
             return True
         return False
 
-    def x_fetch_api_comments(self, comments_map, pre_comment_ids):
+    def x_fetch_api_comments(self, comments_map, comment_ids):
         base = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
         comments = []
-        pre_comments = []
-        comment_ids = []
-        outer = 0
-        for pre_comment_id in pre_comment_ids:
-            if pre_comment_id not in comments_map:
-                continue
-            pre_comments.append({
-                "id": pre_comment_id,
-                "score": comments_map[pre_comment_id]
-            })
-        outer_comments = self.x_filter_comments(pre_comments)
+        outer_comments = (
+            self.x_filter_comments(
+                comments_map,
+                comment_ids,
+                self.COMMENTS_1_COUNT
+            )
+        )
+        #print(outer_comments)
         for outer_comment in outer_comments:
-            if outer > 20:
-                break
             comment_id = outer_comment["id"]
             if comment_id not in comments_map:
                 continue
             url = base.format(id=comment_id)
             comment_json = self.x_fetch_url_json(url)
-            if comment_json is None:
-                continue
             comments.append({
                 "id": comment_id,
                 "score": comments_map[comment_id],
@@ -127,33 +122,36 @@ class HackerNewsRecipe(BasicNewsRecipe):
                     datetime.datetime.utcfromtimestamp(
                         int(comment_json["time"])
                     )
+                    .replace(tzinfo=tz.tzutc())
                 ),
                 "depth": 1,
                 "text": comment_json["text"]
             })
-            outer += 1
-            inner = 0
-            for subcomment_id in comment_json["kids"]:
-                if inner > 2:
-                    break
-                if subcomment_id not in comments_map:
-                    continue
-                suburl = base.format(id=subcomment_id)
-                subcomment_json = self.x_fetch_url_json(suburl)
+            sub_comment_ids = comment_json["kids"]
+            sub_comments = (
+                self.x_filter_comments(
+                    comments_map,
+                    sub_comment_ids,
+                    self.COMMENTS_2_COUNT
+                )
+            )
+            for sub_comment in sub_comments:
+                sub_comment_id = sub_comment["id"]
+                suburl = base.format(id=sub_comment_id)
+                sub_comment_json = self.x_fetch_url_json(suburl)
                 comments.append({
-                    "id": subcomment_id,
-                    "score": comments_map[subcomment_id],
+                    "id": sub_comment_id,
+                    "score": comments_map[sub_comment_id],
                     "date": (
                         datetime.datetime.utcfromtimestamp(
-                            int(subcomment_json["time"])
+                            int(sub_comment_json["time"])
                         )
+                        .replace(tzinfo=tz.tzutc())
                     ),
                     "depth": 2,
-                    "text": subcomment_json["text"]
+                    "text": sub_comment_json["text"]
                 })
-                inner += 1
         return comments
-
 
     def x_get_comments_map(self, article_id):
         base = "https://news.ycombinator.com/item?id={id}"
@@ -200,18 +198,29 @@ class HackerNewsRecipe(BasicNewsRecipe):
         comment["score"] = int(atogg["n"])
         return comment
 
-    def x_filter_comments(self, all_comments):
+    def x_filter_comments(self, comments_map, comment_ids, count):
+        out = []
+        for pre_comment_id in comment_ids:
+            if pre_comment_id not in comments_map:
+                continue
+            out.append({
+                "id": pre_comment_id,
+                "score": comments_map[pre_comment_id]
+            })
         sorted_coms = (
             sorted(
-                all_comments,
+                out,
                 key=lambda c: c["score"],
                 reverse=True
             )
         )
         filt_comments = (
-            filter(lambda c: c["score"] >= self.COMMENT_SCORE, sorted_coms)
+            filter(
+                (lambda c: c["score"] >= self.COMMENT_SCORE),
+                sorted_coms
+            )
         )
-        comments = filt_comments[:self.COMMENTS_COUNT]
+        comments = filt_comments[:count]
         return comments
 
     def x_process_comments(self, article):
@@ -239,13 +248,18 @@ class HackerNewsRecipe(BasicNewsRecipe):
         )
         out += "<div>\n\n"
         for comment in comments:
-            stars = " ".join(map(lambda x: "*", xrange(comment["depth"])))
+            stars = " ".join(map(lambda x: "+", xrange(comment["depth"])))
+            comment_date = (
+                comment["date"]
+                .astimezone(tz.tzlocal())
+                .strftime('%Y-%m-%d %I:%M:%S%p')
+            )
             out += "<div>\n"
             out += (
                 "<h3>{stars} | {score} | {date}</h3>\n".format(
                     stars=stars,
                     score=comment["score"],
-                    date=comment["date"].strftime('%Y-%m-%d %H:%M:%S')
+                    date=comment_date
                 )
             )
             out += "<div>\n"
@@ -266,7 +280,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
             return []
         i = 0
         out_articles = []
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.utcnow().replace(tzinfo=tz.tzutc())
         for article_id in new_article_ids:
             print("FETCHING ARTICLE: %s" % article_id)
             article = self.x_get_article(article_id)
@@ -278,6 +292,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 datetime.datetime.utcfromtimestamp(
                     int(article["time"])
                 )
+                .replace(tzinfo=tz.tzutc())
             )
             offset = now - article_date
             cutoff = (self.ARTICLE_DATE_HOURS * 3600)
@@ -292,6 +307,9 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 "date": article_date,
                 "comment_ids": article["kids"]
             })
+            ## Debug
+            if i > 5:
+                break
             i += 1
         final_articles = (
             sorted(
