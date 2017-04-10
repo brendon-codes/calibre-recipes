@@ -308,8 +308,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 "comment_ids": article["kids"]
             })
             ## Debug
-            if i > 5:
-                break
+            #if i > 5:
+            #    break
             i += 1
         final_articles = (
             sorted(
