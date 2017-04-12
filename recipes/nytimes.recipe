@@ -265,7 +265,11 @@ class NYTimesRecipe(BasicNewsRecipe):
             for feed_article in section["articles"]:
                 article_id = feed_article["id"]
                 art_date = self.x_extract_date_from_url(feed_article["wwwUrl"])
-                art_date_str = art_date.strftime("%Y-%m-%d")
+                art_date_str = (
+                    art_date.strftime("%Y-%m-%d") if
+                    (art_date is not None) else
+                    ""
+                )
                 art_content = self.x_fetch_art_body(article_id)
                 art_body = (
                     self.x_replace_assets(feed_article, art_content, assets)
