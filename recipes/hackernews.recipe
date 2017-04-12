@@ -11,6 +11,7 @@ import json
 import datetime
 from dateutil import tz
 from urlparse import urlparse
+from urllib2 import HTTPError
 
 from calibre.ebooks.BeautifulSoup import BeautifulSoup as Soup
 from calibre.ptempfile import PersistentTemporaryFile
@@ -51,7 +52,10 @@ class HackerNewsRecipe(BasicNewsRecipe):
 
     def x_fetch_url(self, url):
         br = self.get_browser()
-        resp = br.open(url)
+        try:
+            resp = br.open(url)
+        except HTTPError, e:
+            return None
         data = resp.read()
         return data
 
@@ -66,6 +70,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
         base = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
         url = base.format(id=article_id)
         article = self.x_fetch_url_json(url)
+        if article is None:
+            return None
         return article
 
     def x_should_skip_art_score(self, article):
