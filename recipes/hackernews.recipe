@@ -145,15 +145,20 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 sub_comment_id = sub_comment["id"]
                 suburl = base.format(id=sub_comment_id)
                 sub_comment_json = self.x_fetch_url_json(suburl)
-                comments.append({
-                    "id": sub_comment_id,
-                    "score": comments_map[sub_comment_id],
-                    "date": (
+                sub_comment_dt = (
+                    (
                         datetime.datetime.utcfromtimestamp(
                             int(sub_comment_json["time"])
                         )
                         .replace(tzinfo=tz.tzutc())
-                    ),
+                    ) if
+                    ("time" in sub_comment_json) else
+                    ""
+                )
+                comments.append({
+                    "id": sub_comment_id,
+                    "score": comments_map[sub_comment_id],
+                    "date": sub_comment_dt,
                     "depth": 2,
                     "text": sub_comment_json["text"]
                 })
