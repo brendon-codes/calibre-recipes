@@ -125,10 +125,17 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 "id": comment_id,
                 "score": comments_map[comment_id],
                 "date": (
-                    datetime.datetime.utcfromtimestamp(
-                        int(comment_json["time"])
-                    )
-                    .replace(tzinfo=tz.tzutc())
+                    (
+                        datetime.datetime.utcfromtimestamp(
+                            int(comment_json["time"])
+                        )
+                        .replace(tzinfo=tz.tzutc())
+                    ) if
+                    (
+                        (comment_json is not None) and
+                        ("time" in comment_json)
+                    ) else
+                    ""
                 ),
                 "depth": 1,
                 "text": comment_json["text"]
