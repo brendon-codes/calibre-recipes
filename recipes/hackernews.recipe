@@ -152,7 +152,10 @@ class HackerNewsRecipe(BasicNewsRecipe):
                         )
                         .replace(tzinfo=tz.tzutc())
                     ) if
-                    ("time" in sub_comment_json) else
+                    (
+                        (sub_comment_json is not None) and
+                        ("time" in sub_comment_json)
+                    ) else
                     ""
                 )
                 comments.append({
