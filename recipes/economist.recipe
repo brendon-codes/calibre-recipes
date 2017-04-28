@@ -161,7 +161,11 @@ class TheEconomistRecipe(BasicNewsRecipe):
                     )
                 )
                 if (spanflytitle is None):
-                    title = link.string.strip()
+                    title = (
+                        link.string.strip() if
+                        (link.string is not None) else
+                        "TITLE NOT FOUND"
+                    )
                 else:
                     title = spanflytitle.string.strip()
                 if (spantitle is None):
