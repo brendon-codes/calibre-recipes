@@ -326,7 +326,11 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 "url": article["url"],
                 "score": article["score"],
                 "date": article_date,
-                "comment_ids": article["kids"]
+                "comment_ids": (
+                    article["kids"] if
+                    ("kids" in article) else
+                    []
+                )
             })
             ## Debug
             #if i > 5:
