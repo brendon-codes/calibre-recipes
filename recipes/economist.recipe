@@ -10,10 +10,12 @@ from __future__ import (
 import json
 import datetime
 from dateutil import relativedelta
+from dateutil.parser import parse as dt_parse
 from dateutil.tz import tzutc
 
 from calibre.web.feeds.news import BasicNewsRecipe
 from calibre.ebooks.BeautifulSoup import BeautifulSoup as Soup
+from calibre.ebooks.BeautifulSoup import Comment as SoupComment
 
 
 class TheEconomistRecipe(BasicNewsRecipe):
@@ -76,8 +78,33 @@ class TheEconomistRecipe(BasicNewsRecipe):
         content = self.x_fetch_url(start_url)
         return content
 
+    def x_get_soup_content(self, soup):
+        def filt(text):
+            return (
+                (unicode(text.string).strip(u"\u2022\u0020") == u"") or
+                isinstance(text, SoupComment)
+            )
+        comments = soup.findAll(text=filt)
+        for comment in comments:
+            comment.extract()
+        contents = u" ".join(soup.contents).strip()
+        return contents
+
     def x_fetch_articles(self):
         soup = self.x_get_page_soup()
+        metapubdate = (
+            soup.find(
+                "meta",
+                attrs={
+                    "name": "pubdate"
+                }
+            )
+        )
+        if metapubdate is None:
+            dt = datetime.datetime.utcnow()
+        else:
+            dt = dt_parse(metapubdate["content"].strip())
+        dt_str = dt.isoformat()
         divmain = (
             soup.find(
                 "div",
@@ -144,6 +171,26 @@ class TheEconomistRecipe(BasicNewsRecipe):
                 if not link.has_key("href"):
                     continue
                 url = "".join([self.x_base_url, link["href"]])
+                ##
+                ## This is usually the three titles under
+                ##
+                ## "The world this week"
+                ##   - Politics this week
+                ##   - Business this week
+                ##   - KAL's cartoon
+                ##
+                spantitlesub = (
+                    link.find(
+                        "span",
+                        attrs={
+                            "class": "print-edition__link-title-sub"
+                        }
+                    )
+                )
+                ##
+                ## This is usually the black subtitle underneath
+                ## the red title.
+                ##
                 spanflytitle = (
                     link.find(
                         "span",
@@ -152,6 +199,10 @@ class TheEconomistRecipe(BasicNewsRecipe):
                         }
                     )
                 )
+                ##
+                ## This is usually the red main title above the black
+                ## subtitle
+                ##
                 spantitle = (
                     link.find(
                         "span",
@@ -160,22 +211,48 @@ class TheEconomistRecipe(BasicNewsRecipe):
                         }
                     )
                 )
-                if (spanflytitle is None):
-                    title = (
-                        link.string.strip() if
-                        (link.string is not None) else
-                        "TITLE NOT FOUND"
-                    )
-                else:
-                    title = spanflytitle.string.strip()
-                if (spantitle is None):
+                ##
+                ## Build titles
+                ## First we have to strip out comments
+                ##
+                if (
+                        (spantitlesub is not None)
+                ):
+                    title = self.x_get_soup_content(spantitlesub)
                     subtitle = ""
+                elif (
+                        (spantitle is not None) and
+                        (spanflytitle is None)
+                ):
+                    title = self.x_get_soup_content(spantitle)
+                    subtitle = ""
+                elif (
+                        (spantitle is None) and
+                        (spanflytitle is not None)
+                ):
+                    title = self.x_get_soup_content(spanflytitle)
+                    subtitle = ""
+                elif (
+                        (spantitle is not None) and
+                        (spanflytitle is not None)
+                ):
+                    title = (
+                        ": ".join([
+                            self.x_get_soup_content(spantitle),
+                            self.x_get_soup_content(spanflytitle)
+                        ])
+                    )
+                    subtitle = self.x_get_soup_content(spanflytitle)
                 else:
-                    subtitle = spantitle.string.strip()
+                    title = "TITLE NOT FOUND"
+                    subtitle = ""
+                ##
+                ## Build output
+                ##
                 article = {
                     "title": title,
                     "url": url,
-                    "date": 1,
+                    "date": dt_str,
                     "description": subtitle,
                     "content": ""
                 }
