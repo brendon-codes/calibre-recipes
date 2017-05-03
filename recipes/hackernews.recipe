@@ -140,7 +140,11 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 "depth": 1,
                 "text": comment_json["text"]
             })
-            sub_comment_ids = comment_json["kids"]
+            sub_comment_ids = (
+                comment_json["kids"] if
+                ("kids" in comment_json) else
+                []
+            )
             sub_comments = (
                 self.x_filter_comments(
                     comments_map,
