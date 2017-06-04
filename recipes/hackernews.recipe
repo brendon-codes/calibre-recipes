@@ -31,10 +31,6 @@ class HackerNewsRecipe(BasicNewsRecipe):
     auto_cleanup_keep = (
         "//article[@id='hn-comments'] | //article[@id='hn-comments']::*"
     )
-    extra_css = (
-        ".hn-even { background-color: #E3E3E3; } "
-        ".hn-odd { background-color: #FFFFFF; } "
-    )
 
     DEBUG_ARTICLE_FETCH = False
     FEED_TITLE = "All"
