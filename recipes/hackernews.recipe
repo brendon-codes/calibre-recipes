@@ -31,10 +31,14 @@ class HackerNewsRecipe(BasicNewsRecipe):
     auto_cleanup_keep = (
         "//article[@id='hn-comments'] | //article[@id='hn-comments']::*"
     )
+    extra_css = (
+        ".hn-even { background-color: #E3E3E3; } "
+        ".hn-odd { background-color: #FFFFFF; } "
+    )
 
+    DEBUG_ARTICLE_FETCH = False
     FEED_TITLE = "All"
-    ARTICLE_COUNT = 25
-    ARTICLE_SCORE = 70
+    ARTICLE_COUNT = 50
     ARTICLE_TYPES = frozenset([
         "story"
     ])
@@ -45,9 +49,9 @@ class HackerNewsRecipe(BasicNewsRecipe):
         # "theatlantic.com",
         # "techcrunch.com"
     ]
-    COMMENTS_1_COUNT = 12
-    COMMENTS_2_COUNT = 2
-    COMMENT_SCORE = 2
+    ITEM_BASE_URL = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
+    COMMENT_COUNTS = [12, 6, 1]
+    COMMENT_SCORE = 3
     ARTICLE_DATE_HOURS = 24
 
     def x_fetch_url(self, url):
@@ -67,15 +71,11 @@ class HackerNewsRecipe(BasicNewsRecipe):
         return obj
 
     def x_get_article(self, article_id):
-        base = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
-        url = base.format(id=article_id)
+        url = self.ITEM_BASE_URL.format(id=article_id)
         article = self.x_fetch_url_json(url)
         if article is None:
             return None
         return article
-
-    def x_should_skip_art_score(self, article):
-        return (article["score"] < self.ARTICLE_SCORE)
 
     def x_should_skip_art_type(self, article):
         return (article["type"] not in self.ARTICLE_TYPES)
@@ -96,32 +96,39 @@ class HackerNewsRecipe(BasicNewsRecipe):
         return False
 
     def x_should_skip_article(self, article):
-        if self.x_should_skip_art_score(article):
-            return True
         if self.x_should_skip_art_type(article):
             return True
         if self.x_should_skip_art_domain(article):
             return True
         return False
 
-    def x_fetch_api_comments(self, comments_map, comment_ids):
-        base = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
-        comments = []
-        outer_comments = (
+    def x_build_comments(
+            self,
+            comments_map,
+            comment_ids,
+            ret_comments,
+            depth=0
+    ):
+        if (depth >= len(self.COMMENT_COUNTS)):
+            return True
+        if ((comment_ids is None) or (len(comment_ids) == 0)):
+            return True
+        comment_count = self.COMMENT_COUNTS[depth]
+        #print("COUNT: %d" % comment_count)
+        filt_comments = (
             self.x_filter_comments(
                 comments_map,
                 comment_ids,
-                self.COMMENTS_1_COUNT
+                comment_count
             )
         )
-        #print(outer_comments)
-        for outer_comment in outer_comments:
-            comment_id = outer_comment["id"]
+        for filt_comment in filt_comments:
+            comment_id = filt_comment["id"]
             if comment_id not in comments_map:
                 continue
-            url = base.format(id=comment_id)
+            url = self.ITEM_BASE_URL.format(id=comment_id)
             comment_json = self.x_fetch_url_json(url)
-            comments.append({
+            ret_comments.append({
                 "id": comment_id,
                 "score": comments_map[comment_id],
                 "date": (
@@ -137,7 +144,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
                     ) else
                     ""
                 ),
-                "depth": 1,
+                "depth": depth,
                 "text": comment_json["text"]
             })
             sub_comment_ids = (
@@ -145,37 +152,17 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 ("kids" in comment_json) else
                 []
             )
-            sub_comments = (
-                self.x_filter_comments(
-                    comments_map,
-                    sub_comment_ids,
-                    self.COMMENTS_2_COUNT
-                )
+            self.x_build_comments(
+                comments_map,
+                sub_comment_ids,
+                ret_comments,
+                (depth + 1)
             )
-            for sub_comment in sub_comments:
-                sub_comment_id = sub_comment["id"]
-                suburl = base.format(id=sub_comment_id)
-                sub_comment_json = self.x_fetch_url_json(suburl)
-                sub_comment_dt = (
-                    (
-                        datetime.datetime.utcfromtimestamp(
-                            int(sub_comment_json["time"])
-                        )
-                        .replace(tzinfo=tz.tzutc())
-                    ) if
-                    (
-                        (sub_comment_json is not None) and
-                        ("time" in sub_comment_json)
-                    ) else
-                    ""
-                )
-                comments.append({
-                    "id": sub_comment_id,
-                    "score": comments_map[sub_comment_id],
-                    "date": sub_comment_dt,
-                    "depth": 2,
-                    "text": sub_comment_json["text"]
-                })
+        return True
+
+    def x_fetch_api_comments(self, comments_map, comment_ids):
+        comments = []
+        self.x_build_comments(comments_map, comment_ids, comments)
         return comments
 
     def x_get_comments_map(self, article_id):
@@ -273,7 +260,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
         )
         out += "<div>\n\n"
         for comment in comments:
-            stars = " ".join(map(lambda x: "+", xrange(comment["depth"])))
+            real_depth = comment["depth"] + 1
+            stars = " ".join(map(lambda x: "+", xrange(real_depth)))
             comment_date = (
                 comment["date"]
                 .astimezone(tz.tzlocal())
@@ -336,9 +324,11 @@ class HackerNewsRecipe(BasicNewsRecipe):
                     []
                 )
             })
+            ##
             ## Debug
-            #if i > 5:
-            #    break
+            ##
+            if self.DEBUG_ARTICLE_FETCH and (i > 5):
+                break
             i += 1
         final_articles = (
             sorted(
