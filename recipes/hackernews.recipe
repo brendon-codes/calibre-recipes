@@ -7,8 +7,10 @@ from __future__ import (
     absolute_import,
     print_function
 )
+import sys
 import json
 import datetime
+from pprint import pprint
 from dateutil import tz
 from urlparse import urlparse
 from urllib2 import HTTPError
@@ -16,6 +18,152 @@ from urllib2 import HTTPError
 from calibre.ebooks.BeautifulSoup import BeautifulSoup as Soup
 from calibre.ptempfile import PersistentTemporaryFile
 from calibre.web.feeds.news import BasicNewsRecipe
+
+from cssutils.css.value import *
+
+
+def cssutils__setCssText(self, cssText):
+    """
+    This is used to monkeypatch a broken CSS parser problem
+    """
+    self._checkReadonly()
+    types = self._prods # rename!
+    component = Choice(PreDef.unary(toSeq=lambda t, tokens: (t[0],
+                        DimensionValue(pushtoken(t, tokens),
+                        parent=self)
+                       )),
+                       PreDef.number(toSeq=lambda t, tokens: (t[0],
+                        DimensionValue(pushtoken(t, tokens),
+                        parent=self)
+                       )),
+                       PreDef.percentage(toSeq=lambda t, tokens: (t[0],
+                        DimensionValue(pushtoken(t, tokens),
+                        parent=self)
+                       ))
+               )
+    noalp = Sequence(Prod(name='FUNCTION',
+                          match=lambda t, v: t == types.FUNCTION and
+                                             v in (u'rgb(', u'hsl('),
+                          toSeq=lambda t, tokens: (t[0], normalize(t[1]))),
+                      component,
+                      Sequence(PreDef.comma(optional=True),
+                               component,
+                               minmax=lambda: (2, 2)
+                               ),
+                      PreDef.funcEnd(stop=True)
+                      )
+    witha = Sequence(Prod(name='FUNCTION',
+                          match=lambda t, v: t == types.FUNCTION and
+                                             v in (u'rgba(', u'hsla('),
+                          toSeq=lambda t, tokens: (t[0],
+                             normalize(t[1]))
+                          ),
+                      component,
+                      Sequence(PreDef.comma(optional=True),
+                               component,
+                               minmax=lambda: (3, 3)
+                               ),
+                      PreDef.funcEnd(stop=True)
+                      )
+    namedcolor = Prod(name='Named Color',
+                 match=lambda t, v: t == 'IDENT' and (
+                                    normalize(v) in self.COLORS.keys()
+                                    ),
+                 stop=True)
+    prods = Choice(PreDef.hexcolor(stop=True),
+                   namedcolor,
+                   noalp,
+                   witha)
+
+    ok, seq, store, unused = ProdParser().parse(cssText,
+                                                self.type,
+                                                prods)
+    self.wellformed = ok
+    if ok:
+        t, v = seq[0].type, seq[0].value
+        if u'IDENT' == t:
+            rgba = self.COLORS[normalize(v)]
+        if u'HASH' == t:
+            if len(v) == 4:
+                # HASH #rgb
+                rgba = (int(2*v[1], 16),
+                        int(2*v[2], 16),
+                        int(2*v[3], 16),
+                        1.0)
+            else:
+                # HASH #rrggbb
+                rgba = (int(v[1:3], 16),
+                        int(v[3:5], 16),
+                        int(v[5:7], 16),
+                        1.0)
+        elif u'FUNCTION' == t:
+            functiontype, raw, check = None, [], u''
+            HSL = False
+            for item in seq:
+                try:
+                    type_ = item.value.type
+                except AttributeError, e:
+                    # type of function, e.g. rgb(
+                    if item.type == 'FUNCTION':
+                        functiontype = item.value
+                        HSL = functiontype in (u'hsl(', u'hsla(')
+                    continue
+                # save components
+                if type_ == Value.NUMBER:
+                    raw.append(item.value.value)
+                    check += u'N'
+                elif type_ == Value.PERCENTAGE:
+                    if HSL:
+                        # save as percentage fraction
+                        raw.append(item.value.value / 100.0)
+                    else:
+                        # save as real value of percentage of 255
+                        raw.append(int(255 * item.value.value / 100))
+                    check += u'P'
+            if HSL:
+                # convert to rgb
+                # h is 360 based (circle)
+                h, s, l = raw[0] / 360.0, raw[1], raw[2]
+                # ORDER h l s !!!
+                r, g, b = colorsys.hls_to_rgb(h, l, s)
+                # back to 255 based
+                rgba = [int(round(r*255)),
+                        int(round(g*255)),
+                        int(round(b*255))]
+                if len(raw) > 3:
+                    rgba.append(raw[3])
+            else:
+                # rgb, rgba
+                rgba = raw
+            if len(rgba) < 4:
+                rgba.append(1.0)
+            # validate
+            checks = {u'rgb(': ('NNN', 'PPP'),
+                     u'rgba(': ('NNNN', 'PPPN'),
+                     u'hsl(': ('NPP',),
+                     u'hsla(': ('NPPN',)
+                     }
+            if check not in checks[functiontype]:
+                self._log.error(u'ColorValue has invalid %s) parameters: '
+                                u'%s (N=Number, P=Percentage)' %
+                                (functiontype, check))
+        self._colorType = t
+        ##
+        ## This is a hack to fix a weird parsing error
+        ##
+        t_rgba = tuple(rgba)
+        if (len(t_rgba) < 4):
+            t_rgba = (t_rgba + ((255,) * (4 - len(t_rgba))))
+        self._red, self._green, self._blue, self._alpha = tuple(t_rgba)
+        ##
+        ## End Hack
+        ##
+        self._setSeq(seq)
+
+##
+## Monkeypatch this function
+##
+ColorValue._setCssText = cssutils__setCssText
 
 
 class HackerNewsRecipe(BasicNewsRecipe):
