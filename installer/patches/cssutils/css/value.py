@@ -456,7 +456,7 @@ class ColorValue(Value):
             t_rgba = tuple(rgba)
             if (len(t_rgba) < 4):
                 self._log.error("RGBA ERROR: %s" % str(t_rgba))
-                t_rgba = (t_rgba + ((255,) * (4 - len(t_rgba))))
+                t_rgba = (t_rgba + ((0,) * (4 - len(t_rgba))))
             self._red, self._green, self._blue, self._alpha = tuple(t_rgba)
             ##
             ## End Hack
