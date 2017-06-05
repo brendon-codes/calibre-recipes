@@ -1,6 +1,29 @@
 #!/usr/bin/env python2
 # vim:fileencoding=utf-8
 
+"""
+Hacker News Recipe
+
+You might get some SplitError errors.  If so, do this:
+
+    On the Structure Detection tab (when using the GUI),
+    there is an option entitled “Insert page breaks before
+    (XPath Expression):”. I replaced the default (which was
+    the XPath for H1 and H2 tags) with the following:
+
+        //p[position() mod 20 = 0]
+
+    This will insert a page break every 20 paragraphs. The
+    number was utterly arbitrary. Because paragraphs are
+    usually well-detected, this worked fine. My large 5.5 MB
+    file, a copy of Easton’s Bible Dictionary from CCEL,
+    converted as expected.
+
+    See:
+        http://www.mad-computer-scientist.com/blog
+        /2015/04/27/converting-large-text-files-to-epub-with-calibre/
+"""
+
 from __future__ import (
     unicode_literals,
     division,
