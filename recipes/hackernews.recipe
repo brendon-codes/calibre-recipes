@@ -52,7 +52,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
 
     DEBUG_ARTICLE_FETCH = False
     FEED_TITLE = "All"
-    ARTICLE_COUNT = 50
+    ARTICLE_COUNT = 25
     ARTICLE_TYPES = frozenset([
         "story"
     ])
