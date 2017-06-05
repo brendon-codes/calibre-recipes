@@ -1,0 +1,9 @@
+198,199c198,202
+<         split(self.oeb, self.opts)
+< 
+---
+>         try:
+>             split(self.oeb, self.opts)
+>         except:
+>             self.log.error("Split Error")
+>             pass
