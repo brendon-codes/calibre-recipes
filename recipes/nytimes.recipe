@@ -90,6 +90,8 @@ class NYTimesRecipe(BasicNewsRecipe):
         out = {}
         assets = mainobj["assets"]
         for asset in assets:
+            if "wwwUrl" not in asset:
+                continue
             asset_id = asset["id"]
             if asset["type"] != "image":
                 continue
