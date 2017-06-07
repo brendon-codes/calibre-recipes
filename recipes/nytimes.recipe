@@ -106,8 +106,16 @@ class NYTimesRecipe(BasicNewsRecipe):
                     ("credit" in asset) else
                     None
                 ),
-                "height": asset["height"],
-                "width": asset["width"],
+                "height": (
+                    asset["height"] if
+                    ("height" in asset) else
+                    None
+                ),
+                "width": (
+                    asset["width"] if
+                    ("width" in asset) else
+                    400
+                ),
                 "url": asset["wwwUrl"]
             }
         return out
@@ -201,8 +209,8 @@ class NYTimesRecipe(BasicNewsRecipe):
             " alt='{alt}' />"
         ).format(
             src=asset["url"],
-            height=asset["height"],
-            width=asset["width"],
+            height=(asset["height"] if (asset["height"] is not None) else ""),
+            width=(asset["width"] if (asset["width"] is not None) else ""),
             alt=(
                 asset["caption"] if
                 ("caption" in asset) else

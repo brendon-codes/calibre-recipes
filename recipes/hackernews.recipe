@@ -251,11 +251,15 @@ class HackerNewsRecipe(BasicNewsRecipe):
 
     def x_process_comments(self, article):
         comments_map = self.x_get_comments_map(article["id"])
+        comments_count = len(comments_map)
         comments = (
             self.x_fetch_api_comments(comments_map, article["comment_ids"])
         )
         html = self.x_format_comments(article, comments)
-        return html
+        return {
+            "html": html,
+            "count": comments_count
+        }
 
     def x_format_comments(self, article, comments):
         page_title = "Comments: {title}".format(title=article["title"])
@@ -361,13 +365,20 @@ class HackerNewsRecipe(BasicNewsRecipe):
             self.report_progress(0, "Processing Article: %s" % article["id"])
             format_date = article["date"].strftime('%Y-%m-%d %H:%M:%S')
             article_title = (
-                "[{score}] {title}".format(
+                "[S | {score}] {title}".format(
                     score=article["score"],
                     title=article["title"]
                 )
             )
-            comments_title = "[Comments] {title}".format(title=article["title"])
-            comments_html = self.x_process_comments(article)
+            comments_res = self.x_process_comments(article)
+            comments_html = comments_res["html"]
+            comments_count = comments_res["count"]
+            comments_title = (
+                "[C | {count}] {title}".format(
+                    count=comments_count,
+                    title=article["title"]
+                )
+            )
             out_articles.append({
                 "title": article_title,
                 "url": article["url"],
