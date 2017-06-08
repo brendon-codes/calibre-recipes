@@ -51,7 +51,6 @@ class HackerNewsRecipe(BasicNewsRecipe):
     )
 
     DEBUG_ARTICLE_FETCH = False
-    FEED_TITLE = "All"
     ARTICLE_COUNT = 25
     ARTICLE_TYPES = frozenset([
         "story"
@@ -66,7 +65,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     ITEM_BASE_URL = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
     COMMENT_COUNTS = [12, 6, 1]
     COMMENT_SCORE = 3
-    ARTICLE_DATE_HOURS = 24
+    ARTICLE_DATE_HOURS = 12
 
     def x_fetch_url(self, url):
         br = self.get_browser()
@@ -348,19 +347,32 @@ class HackerNewsRecipe(BasicNewsRecipe):
             if self.DEBUG_ARTICLE_FETCH and (i > 5):
                 break
             i += 1
-        final_articles = (
+        return out_articles
+
+    def x_filter_articles(self, articles):
+        arts_top = (
             sorted(
-                out_articles,
+                articles,
                 key=lambda a: a["score"],
                 reverse=True
             )
         )
-        limit_articles = final_articles[:self.ARTICLE_COUNT]
-        return limit_articles
+        arts_top_lim = list(arts_top[:self.ARTICLE_COUNT])
+        arts_top_lim_map = dict(map((lambda a: (a["id"], a)), arts_top_lim))
+        arts_new = (
+            filter((lambda a: (a["id"] not in arts_top_lim_map)), articles)
+        )
+        arts_new_lim = list(arts_new[:self.ARTICLE_COUNT])
+        arts_all = arts_top_lim + arts_new_lim
+        ret = {
+            "top": arts_top_lim,
+            "new": arts_new_lim,
+            "all": arts_all
+        }
+        return ret
 
-    def x_get_articles(self):
-        articles = self.x_fetch_articles()
-        out_articles = []
+    def x_build_art_details(self, articles):
+        out_articles = {}
         for article in articles:
             self.report_progress(0, "Processing Article: %s" % article["id"])
             format_date = article["date"].strftime('%Y-%m-%d %H:%M:%S')
@@ -379,15 +391,34 @@ class HackerNewsRecipe(BasicNewsRecipe):
                     title=article["title"]
                 )
             )
-            out_articles.append({
+            out_articles[article["id"]] = {
                 "title": article_title,
                 "url": article["url"],
                 "date": format_date,
                 "comments_title": comments_title,
                 "comments_html": comments_html
-            })
-        #print(out_articles)
+            }
         return out_articles
+
+    def x_collate_articles(self, articles, dets_map):
+        return (
+            map(
+                (lambda a: dets_map[a["id"]]),
+                articles
+            )
+        )
+
+    def x_get_articles(self):
+        raw_arts = self.x_fetch_articles()
+        filt_arts = self.x_filter_articles(raw_arts)
+        dets_map = self.x_build_art_details(filt_arts["all"])
+        out_top = self.x_collate_articles(filt_arts["top"], dets_map)
+        out_new = self.x_collate_articles(filt_arts["new"], dets_map)
+        ret = {
+            "Top": out_top,
+            "New": out_new
+        }
+        return ret
 
     def x_save_comment_url(self, article):
         tmp = PersistentTemporaryFile('_fa.html')
@@ -398,26 +429,27 @@ class HackerNewsRecipe(BasicNewsRecipe):
         return url
 
     def parse_index(self):
-        items = self.x_get_articles()
-        articles = []
-        for item in items:
-            articles.append({
-                "title": item["title"],
-                "url": item["url"],
-                "date": item["date"],
-                "description": item["title"],
-                "content": ""
-            })
-            articles.append({
-                "title": item["comments_title"],
-                "url": self.x_save_comment_url(item),
-                "date": item["date"],
-                "description": item["comments_title"],
-                "content": ""
-            })
+        item_grps = self.x_get_articles()
         feeds = []
-        feeds.append((
-            self.FEED_TITLE,
-            articles
-        ))
+        for section, items in item_grps.items():
+            articles = []
+            for item in items:
+                articles.append({
+                    "title": item["title"],
+                    "url": item["url"],
+                    "date": item["date"],
+                    "description": item["title"],
+                    "content": ""
+                })
+                articles.append({
+                    "title": item["comments_title"],
+                    "url": self.x_save_comment_url(item),
+                    "date": item["date"],
+                    "description": item["comments_title"],
+                    "content": ""
+                })
+            feeds.append((
+                section,
+                articles
+            ))
         return feeds
