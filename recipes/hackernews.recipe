@@ -99,8 +99,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         if "url" not in article:
             return True
         url = article["url"]
-        parts = urlparse(url)
-        domain = parts.netloc
+        domain = article["domain"]
         for exc_domain in self.ARTICLE_DOMAINS_EXCLUDE:
             exc_dotdomain = "".join([".", exc_domain])
             if (
@@ -335,6 +334,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 "id": article["id"],
                 "title": article["title"],
                 "url": article["url"],
+                "domain": urlparse(article["url"]).netloc,
                 "score": article["score"],
                 "date": article_date,
                 "comment_ids": (
@@ -379,18 +379,20 @@ class HackerNewsRecipe(BasicNewsRecipe):
             self.report_progress(0, "Processing Article: %s" % article["id"])
             format_date = article["date"].strftime('%Y-%m-%d %H:%M:%S')
             article_title = (
-                "[S | {score}] {title}".format(
+                "S | {score} | {domain} | {title}".format(
                     score=article["score"],
-                    title=article["title"]
+                    title=article["title"],
+                    domain=article["domain"]
                 )
             )
             comments_res = self.x_process_comments(article)
             comments_html = comments_res["html"]
             comments_count = comments_res["count"]
             comments_title = (
-                "[C | {count}] {title}".format(
+                "C | {count} | {domain} | {title}".format(
                     count=comments_count,
-                    title=article["title"]
+                    title=article["title"],
+                    domain=article["domain"]
                 )
             )
             out_articles[article["id"]] = {
