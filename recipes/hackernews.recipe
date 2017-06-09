@@ -99,7 +99,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         if "url" not in article:
             return True
         url = article["url"]
-        domain = article["domain"]
+        domain = urlparse(url).netloc
         for exc_domain in self.ARTICLE_DOMAINS_EXCLUDE:
             exc_dotdomain = "".join([".", exc_domain])
             if (
