@@ -52,6 +52,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
 
     DEBUG_ARTICLE_FETCH = False
     ARTICLE_COUNT = 25
+    #ARTICLE_COUNT = 3
     ARTICLE_TYPES = frozenset([
         "story"
     ])
@@ -65,7 +66,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
     ITEM_BASE_URL = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
     COMMENT_COUNTS = [12, 6, 1]
     COMMENT_SCORE = 3
-    ARTICLE_DATE_HOURS = 12
+    ARTICLE_DATE_HOURS = 24
+    #ARTICLE_DATE_HOURS = 500
 
     def x_fetch_url(self, url):
         br = self.get_browser()
@@ -344,7 +346,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
             ##
             ## Debug
             ##
-            if self.DEBUG_ARTICLE_FETCH and (i > 5):
+            if self.DEBUG_ARTICLE_FETCH and (i > 10):
                 break
             i += 1
         return out_articles
