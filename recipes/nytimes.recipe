@@ -52,12 +52,22 @@ class NYTimesRecipe(BasicNewsRecipe):
 
     def get_browser(self):
         br = super(NYTimesRecipe, self).get_browser()
-        if (self.username is not None) and (self.password is not None):
-            br.open("https://www.nytimes.com/auth/login")
-            br.select_form(nr=0)
-            br["userid"]   = self.username
-            br["password"] = self.password
-            br.submit()
+        ##
+        ## It seems that NYTimes no longer allows to easily submit
+        ## this form.  Now they have JS rendered HTML and a Captcha.
+        ## So, as a workaround, we will provide the cookie.
+        ##
+        #if (self.username is not None) and (self.password is not None):
+        #    br.open("https://www.nytimes.com/auth/login")
+        #    br.select_form(nr=0)
+        #    br["userid"]   = self.username
+        #    br["password"] = self.password
+        #    br.submit()
+        ##
+        ## Use the username field as the cookie
+        ##
+        if self.username is not None:
+            br.addheaders = [("Cookie", self.username)]
         return br
 
     def x_fetch_url_json(self, url):
