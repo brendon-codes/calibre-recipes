@@ -46,6 +46,13 @@ class HackerNewsRecipe(BasicNewsRecipe):
     publication_type = "blog"
     timefmt = ""
     temp_files = []
+    no_stylesheets = True
+    language = "eng"
+    encoding = "utf8"
+    recursions = 0
+    remove_javascript = True
+    remove_tags = ["img", "picture", "style"]
+    remove_attributes = ["style"]
     auto_cleanup_keep = (
         "//article[@id='hn-comments'] | //article[@id='hn-comments']::*"
     )
@@ -68,6 +75,15 @@ class HackerNewsRecipe(BasicNewsRecipe):
     COMMENT_SCORE = 3
     ARTICLE_DATE_HOURS = 24
     #ARTICLE_DATE_HOURS = 500
+
+    def preprocess_image(self, img_data, image_url):
+        """
+        Perform some processing on downloaded image data.
+        This is called on the raw data before any resizing is done.
+        Must return the processed raw data. Return
+        None to skip the image.
+        """
+        return None
 
     def x_fetch_url(self, url):
         br = self.get_browser()
