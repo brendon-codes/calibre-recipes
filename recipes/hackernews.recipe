@@ -46,13 +46,20 @@ class HackerNewsRecipe(BasicNewsRecipe):
     publication_type = "blog"
     timefmt = ""
     temp_files = []
-    no_stylesheets = True
     language = "eng"
     encoding = "utf8"
     recursions = 0
+    no_stylesheets = True
     remove_javascript = True
-    remove_tags = ["img", "picture", "style"]
-    remove_attributes = ["style"]
+    remove_tags = [
+        {"name": "style"},
+        {"name": "img"},
+        {"name": "picture"},
+        {"name": "source"},
+        {"name": "video"},
+        {"name": "link", "attrs": {"rel": "stylesheet"}}
+    ]
+    remove_attributes = ["style", "href"]
     auto_cleanup_keep = (
         "//article[@id='hn-comments'] | //article[@id='hn-comments']::*"
     )
@@ -73,6 +80,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     ITEM_BASE_URL = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
     COMMENT_COUNTS = [12, 6, 1]
     COMMENT_SCORE = 3
+    #COMMENT_SCORE = 0
     ARTICLE_DATE_HOURS = 24
     #ARTICLE_DATE_HOURS = 500
 
@@ -158,6 +166,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 continue
             url = self.ITEM_BASE_URL.format(id=comment_id)
             comment_json = self.x_fetch_url_json(url)
+            if ("deleted" in comment_json) and (comment_json["deleted"] is True):
+                continue
             ret_comments.append({
                 "id": comment_id,
                 "score": comments_map[comment_id],
@@ -362,7 +372,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
             ##
             ## Debug
             ##
-            if self.DEBUG_ARTICLE_FETCH and (i > 10):
+            if self.DEBUG_ARTICLE_FETCH and (i > 5):
                 break
             i += 1
         return out_articles
