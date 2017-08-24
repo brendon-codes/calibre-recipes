@@ -29,7 +29,7 @@ import datetime
 from pprint import pprint
 from dateutil import tz
 from urlparse import urlparse
-from urllib2 import HTTPError
+from urllib2 import HTTPError, URLError
 
 from calibre.ebooks.BeautifulSoup import BeautifulSoup as Soup
 from calibre.ptempfile import PersistentTemporaryFile
@@ -89,7 +89,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         br = self.get_browser()
         try:
             resp = br.open(url)
-        except HTTPError, e:
+        except (HTTPError, URLError) as e:
             return None
         data = resp.read()
         return data
