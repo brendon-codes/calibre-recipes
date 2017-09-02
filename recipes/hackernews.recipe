@@ -64,8 +64,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
         "//article[@id='hn-comments'] | //article[@id='hn-comments']::*"
     )
 
-    DEBUG_ARTICLE_FETCH = True
-    ARTICLE_COUNT = 25
+    DEBUG_ARTICLE_FETCH = False
+    ARTICLE_COUNT = 16
     ARTICLE_TYPES = frozenset([
         "story"
     ])
