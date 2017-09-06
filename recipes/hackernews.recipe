@@ -165,6 +165,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 continue
             url = self.ITEM_BASE_URL.format(id=comment_id)
             comment_json = self.x_fetch_url_json(url)
+            if comment_json is None:
+                continue
             if ("deleted" in comment_json) and (comment_json["deleted"] is True):
                 continue
             ret_comments.append({
@@ -447,7 +449,10 @@ class HackerNewsRecipe(BasicNewsRecipe):
             ## so we need to throttle this, so that we do not
             ## go over that
             ##
-            self.report_progress(0, "Articles Processed. Sleeping: %s" % article["id"])
+            self.report_progress(
+                0,
+                "Processed Article. Sleeping: %s" % article["id"]
+            )
             time.sleep(15)
         return out_articles
 
