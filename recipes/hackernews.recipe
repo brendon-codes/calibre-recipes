@@ -23,6 +23,7 @@ from __future__ import (
     absolute_import,
     print_function
 )
+import time
 import sys
 import json
 import datetime
@@ -78,10 +79,6 @@ class HackerNewsRecipe(BasicNewsRecipe):
     ]
     ITEM_BASE_URL = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
     COMMENT_COUNTS = [12, 6, 1]
-    COMMENT_SCORE = {
-        "top": 3,
-        "new": 0
-    }
     ARTICLE_DATE_HOURS = [12, 24]
 
     def preprocess_image(self, img_data, image_url):
@@ -254,7 +251,6 @@ class HackerNewsRecipe(BasicNewsRecipe):
         return comment
 
     def x_filter_comments(self, comments_map, comment_ids, count, secname):
-        use_comment_score = self.COMMENT_SCORE[secname]
         out = []
         for pre_comment_id in comment_ids:
             if pre_comment_id not in comments_map:
@@ -270,13 +266,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 reverse=True
             )
         )
-        filt_comments = (
-            filter(
-                (lambda c: c["score"] >= use_comment_score),
-                sorted_coms
-            )
-        )
-        comments = filt_comments[:count]
+        comments = sorted_coms[:count]
         return comments
 
     def x_process_comments(self, article, secname):
@@ -452,6 +442,13 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 "comments_title": comments_title,
                 "comments_html": comments_html
             }
+            ##
+            ## HN puts a limit of 4 requests per minute
+            ## so we need to throttle this, so that we do not
+            ## go over that
+            ##
+            self.report_progress(0, "Articles Processed. Sleeping: %s" % article["id"])
+            time.sleep(15)
         return out_articles
 
     def x_collate_articles(self, articles, dets_map):
