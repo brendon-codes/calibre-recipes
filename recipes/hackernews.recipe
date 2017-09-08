@@ -66,7 +66,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     )
 
     DEBUG_ARTICLE_FETCH = False
-    ARTICLE_COUNT = 16
+    ARTICLE_COUNT = 20
     ARTICLE_TYPES = frozenset([
         "story"
     ])
@@ -78,6 +78,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         # "techcrunch.com"
     ]
     ITEM_BASE_URL = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
+    TOP_BASE_URL = "https://hacker-news.firebaseio.com/v0/topstories.json"
     COMMENT_COUNTS = [12, 6, 1]
     ARTICLE_DATE_HOURS = [12, 24]
 
@@ -139,7 +140,6 @@ class HackerNewsRecipe(BasicNewsRecipe):
 
     def x_build_comments(
             self,
-            comments_map,
             comment_ids,
             ret_comments,
             secname,
@@ -153,16 +153,13 @@ class HackerNewsRecipe(BasicNewsRecipe):
         #print("COUNT: %d" % comment_count)
         filt_comments = (
             self.x_filter_comments(
-                comments_map,
                 comment_ids,
                 comment_count,
                 secname
             )
         )
         for filt_comment in filt_comments:
-            comment_id = filt_comment["id"]
-            if comment_id not in comments_map:
-                continue
+            comment_id = filt_comment
             url = self.ITEM_BASE_URL.format(id=comment_id)
             comment_json = self.x_fetch_url_json(url)
             if comment_json is None:
@@ -171,7 +168,6 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 continue
             ret_comments.append({
                 "id": comment_id,
-                "score": comments_map[comment_id],
                 "date": (
                     (
                         datetime.datetime.utcfromtimestamp(
@@ -194,7 +190,6 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 []
             )
             self.x_build_comments(
-                comments_map,
                 sub_comment_ids,
                 ret_comments,
                 secname,
@@ -202,85 +197,68 @@ class HackerNewsRecipe(BasicNewsRecipe):
             )
         return True
 
-    def x_fetch_api_comments(self, comments_map, comment_ids, secname):
+    def x_fetch_api_comments(self, comment_ids, secname):
         comments = []
-        self.x_build_comments(comments_map, comment_ids, comments, secname)
+        self.x_build_comments(comment_ids, comments, secname)
         return comments
 
-    def x_get_comments_map(self, article_id):
-        base = "https://news.ycombinator.com/item?id={id}"
-        url = base.format(id=article_id)
-        content = self.x_fetch_url(url)
-        soup = Soup(content)
-        com_rows = (
-            soup.findAll(
-                "tr",
-                attrs={
-                    "class": "athing comtr "
-                },
-                recursive=True
-            )
-        )
-        comments = {}
-        for com_row in com_rows:
-            comment = self.x_parse_comment(com_row)
-            if comment is None:
-                continue
-            comments[comment["id"]] = comment["score"]
-        return comments
+    # def x_get_comments_map(self, article_id):
+    #     base = "https://news.ycombinator.com/item?id={id}"
+    #     url = base.format(id=article_id)
+    #     content = self.x_fetch_url(url)
+    #     soup = Soup(content)
+    #     com_rows = (
+    #         soup.findAll(
+    #             "tr",
+    #             attrs={
+    #                 "class": "athing comtr "
+    #             },
+    #             recursive=True
+    #         )
+    #     )
+    #     comments = {}
+    #     for com_row in com_rows:
+    #         comment = self.x_parse_comment(com_row)
+    #         if comment is None:
+    #             continue
+    #         comments[comment["id"]] = comment["score"]
+    #     return comments
 
-    def x_parse_comment(self, com_row):
-        if not com_row.has_key("id"):
-            return None
-        atogg = (
-            com_row.find(
-                "a",
-                attrs={
-                    "class": "togg"
-                }
-            )
-        )
-        if atogg is None:
-            return None
-        if not atogg.has_key("n"):
-            return None
-        ##
-        ## Build output
-        ##
-        comment = {}
-        comment["id"] = int(com_row["id"])
-        comment["score"] = int(atogg["n"])
-        return comment
+    # def x_parse_comment(self, com_row):
+    #     if not com_row.has_key("id"):
+    #         return None
+    #     atogg = (
+    #         com_row.find(
+    #             "a",
+    #             attrs={
+    #                 "class": "togg"
+    #             }
+    #         )
+    #     )
+    #     if atogg is None:
+    #         return None
+    #     if not atogg.has_key("n"):
+    #         return None
+    #     ##
+    #     ## Build output
+    #     ##
+    #     comment = {}
+    #     comment["id"] = int(com_row["id"])
+    #     comment["score"] = int(atogg["n"])
+    #     return comment
 
-    def x_filter_comments(self, comments_map, comment_ids, count, secname):
-        out = []
-        for pre_comment_id in comment_ids:
-            if pre_comment_id not in comments_map:
-                continue
-            out.append({
-                "id": pre_comment_id,
-                "score": comments_map[pre_comment_id]
-            })
-        sorted_coms = (
-            sorted(
-                out,
-                key=lambda c: c["score"],
-                reverse=True
-            )
-        )
-        comments = sorted_coms[:count]
+    def x_filter_comments(self, comment_ids, count, secname):
+        comments = comment_ids[:count]
         return comments
 
     def x_process_comments(self, article, secname):
-        comments_map = self.x_get_comments_map(article["id"])
-        comments_count = len(comments_map)
         comments = (
             self.x_fetch_api_comments(
-                comments_map,
-                article["comment_ids"],
+                article["comment_ids"][:self.COMMENT_COUNTS[0]],
                 secname
             )
         )
+        comments_count = len(article["comment_ids"])
         html = self.x_format_comments(article, comments)
         return {
             "html": html,
@@ -313,9 +291,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
             )
             out += "<div>\n"
             out += (
-                "<h3>{stars} | {score} | {date}</h3>\n".format(
+                "<h3>{stars} | {date}</h3>\n".format(
                     stars=stars,
-                    score=comment["score"],
                     date=comment_date
                 )
             )
@@ -331,7 +308,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         return out
 
     def x_fetch_articles(self):
-        url = "https://hacker-news.firebaseio.com/v0/topstories.json"
+        url = self.TOP_BASE_URL
         new_article_ids = self.x_fetch_url_json(url)
         if new_article_ids is None:
             return []
@@ -372,7 +349,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
             ##
             ## Debug
             ##
-            if self.DEBUG_ARTICLE_FETCH and (i > 3):
+            if self.DEBUG_ARTICLE_FETCH and (i > 7):
                 break
             i += 1
         return out_articles
@@ -449,11 +426,11 @@ class HackerNewsRecipe(BasicNewsRecipe):
             ## so we need to throttle this, so that we do not
             ## go over that
             ##
-            self.report_progress(
-                0,
-                "Processed Article. Sleeping: %s" % article["id"]
-            )
-            time.sleep(15)
+            #self.report_progress(
+            #    0,
+            #    "Processed Article. Sleeping: %s" % article["id"]
+            #)
+            #time.sleep(15)
         return out_articles
 
     def x_collate_articles(self, articles, dets_map):
