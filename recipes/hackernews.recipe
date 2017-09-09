@@ -1,20 +1,27 @@
 #!/usr/bin/env python2
 # vim:fileencoding=utf-8
 
-"""
+u"""
 Hacker News Recipe
 
-There are a couple Calibre python errors you might see when
-using this recipe.  These should mostly be fixed by the
-patches included in this repo.
+Sometimes with this recipe, you might get a SplitError.
+If you are using Kindle, you can usually solve this with the
+following steps:
 
-Two known bugs:
+1. Select "Preferences"
+2. Select "Output Options"
+3. Select "EPUB Output"
+4. Find "Split files larger than:"
+   1. Enter a large value such as "100000 KB".
+      For reasons unknown, as of Calibre v3.6, entering
+      a value of "0" does not seem to work as expected.
+5. Click "Apply"
+6. Click "Close"
 
-- cssutils: ValueError
-- calibre: SplitError
+Keep in mind that splitting with a value over 240KB could
+cause various problems and errors for some devices, although
+I have not observed any problems for Kindle.
 
-If you do get these, apply the patches which are included
-in the `patches` directory of this repo.
 """
 
 from __future__ import (
@@ -38,57 +45,57 @@ from calibre.web.feeds.news import BasicNewsRecipe
 
 
 class HackerNewsRecipe(BasicNewsRecipe):
-    title = "Hacker News"
-    __author__ = "Brendon Crawford"
+    title = u"Hacker News"
+    __author__ = u"Brendon Crawford"
     oldest_article = 2
     max_articles_per_feed = 100
     auto_cleanup = True
     use_embedded_content = False
-    publication_type = "blog"
-    timefmt = ""
+    publication_type = u"blog"
+    timefmt = u""
     temp_files = []
-    language = "eng"
-    encoding = "utf8"
+    language = u"eng"
+    encoding = u"utf8"
     recursions = 0
     no_stylesheets = True
     remove_javascript = True
     remove_tags = [
-        {"name": "style"},
-        {"name": "img"},
-        {"name": "picture"},
-        {"name": "source"},
-        {"name": "video"},
-        {"name": "link", "attrs": {"rel": "stylesheet"}}
+        {u"name": u"style"},
+        {u"name": u"img"},
+        {u"name": u"picture"},
+        {u"name": u"source"},
+        {u"name": u"video"},
+        {u"name": u"link", u"attrs": {u"rel": u"stylesheet"}}
     ]
-    remove_attributes = ["style", "href"]
+    remove_attributes = [u"style", u"href"]
     auto_cleanup_keep = (
-        "//article[@id='hn-comments'] | //article[@id='hn-comments']::*"
+        u"//article[@id='hn-comments'] | //article[@id='hn-comments']::*"
     )
 
     DEBUG_ARTICLE_FETCH = False
     ARTICLE_COUNT = 20
     ARTICLE_TYPES = frozenset([
-        "story"
+        u"story"
     ])
     ARTICLE_DOMAINS_EXCLUDE = [
-        # "nytimes.com",
-        # "bloomberg.com",
-        # "economist.com",
-        # "theatlantic.com",
-        # "techcrunch.com"
+        # u"nytimes.com",
+        # u"bloomberg.com",
+        # u"economist.com",
+        # u"theatlantic.com",
+        # u"techcrunch.com"
     ]
-    ITEM_BASE_URL = "https://hacker-news.firebaseio.com/v0/item/{id}.json"
-    TOP_BASE_URL = "https://hacker-news.firebaseio.com/v0/topstories.json"
+    ITEM_BASE_URL = u"https://hacker-news.firebaseio.com/v0/item/{id}.json"
+    TOP_BASE_URL = u"https://hacker-news.firebaseio.com/v0/topstories.json"
     COMMENT_COUNTS = [12, 6, 1]
     ARTICLE_DATE_HOURS = [12, 24]
 
     def preprocess_image(self, img_data, image_url):
-        """
+        u"""
         Perform some processing on downloaded image data.
         This is called on the raw data before any resizing is done.
         Must return the processed raw data. Return
         None to skip the image.
-        """
+        u"""
         return None
 
     def x_fetch_url(self, url):
@@ -115,15 +122,15 @@ class HackerNewsRecipe(BasicNewsRecipe):
         return article
 
     def x_should_skip_art_type(self, article):
-        return (article["type"] not in self.ARTICLE_TYPES)
+        return (article[u"type"] not in self.ARTICLE_TYPES)
 
     def x_should_skip_art_domain(self, article):
-        if "url" not in article:
+        if u"url" not in article:
             return True
-        url = article["url"]
+        url = article[u"url"]
         domain = urlparse(url).netloc
         for exc_domain in self.ARTICLE_DOMAINS_EXCLUDE:
-            exc_dotdomain = "".join([".", exc_domain])
+            exc_dotdomain = u"".join([u".", exc_domain])
             if (
                     (exc_domain in domain) or
                     (exc_dotdomain in domain)
@@ -150,7 +157,6 @@ class HackerNewsRecipe(BasicNewsRecipe):
         if ((comment_ids is None) or (len(comment_ids) == 0)):
             return True
         comment_count = self.COMMENT_COUNTS[depth]
-        #print("COUNT: %d" % comment_count)
         filt_comments = (
             self.x_filter_comments(
                 comment_ids,
@@ -164,29 +170,32 @@ class HackerNewsRecipe(BasicNewsRecipe):
             comment_json = self.x_fetch_url_json(url)
             if comment_json is None:
                 continue
-            if ("deleted" in comment_json) and (comment_json["deleted"] is True):
+            if (
+                    (u"deleted" in comment_json) and
+                    (comment_json[u"deleted"] is True)
+            ):
                 continue
             ret_comments.append({
-                "id": comment_id,
-                "date": (
+                u"id": comment_id,
+                u"date": (
                     (
                         datetime.datetime.utcfromtimestamp(
-                            int(comment_json["time"])
+                            int(comment_json[u"time"])
                         )
                         .replace(tzinfo=tz.tzutc())
                     ) if
                     (
                         (comment_json is not None) and
-                        ("time" in comment_json)
+                        (u"time" in comment_json)
                     ) else
-                    ""
+                    u""
                 ),
-                "depth": depth,
-                "text": comment_json["text"]
+                u"depth": depth,
+                u"text": unicode(comment_json[u"text"])
             })
             sub_comment_ids = (
-                comment_json["kids"] if
-                ("kids" in comment_json) else
+                comment_json[u"kids"] if
+                (u"kids" in comment_json) else
                 []
             )
             self.x_build_comments(
@@ -202,51 +211,6 @@ class HackerNewsRecipe(BasicNewsRecipe):
         self.x_build_comments(comment_ids, comments, secname)
         return comments
 
-    # def x_get_comments_map(self, article_id):
-    #     base = "https://news.ycombinator.com/item?id={id}"
-    #     url = base.format(id=article_id)
-    #     content = self.x_fetch_url(url)
-    #     soup = Soup(content)
-    #     com_rows = (
-    #         soup.findAll(
-    #             "tr",
-    #             attrs={
-    #                 "class": "athing comtr "
-    #             },
-    #             recursive=True
-    #         )
-    #     )
-    #     comments = {}
-    #     for com_row in com_rows:
-    #         comment = self.x_parse_comment(com_row)
-    #         if comment is None:
-    #             continue
-    #         comments[comment["id"]] = comment["score"]
-    #     return comments
-
-    # def x_parse_comment(self, com_row):
-    #     if not com_row.has_key("id"):
-    #         return None
-    #     atogg = (
-    #         com_row.find(
-    #             "a",
-    #             attrs={
-    #                 "class": "togg"
-    #             }
-    #         )
-    #     )
-    #     if atogg is None:
-    #         return None
-    #     if not atogg.has_key("n"):
-    #         return None
-    #     ##
-    #     ## Build output
-    #     ##
-    #     comment = {}
-    #     comment["id"] = int(com_row["id"])
-    #     comment["score"] = int(atogg["n"])
-    #     return comment
-
     def x_filter_comments(self, comment_ids, count, secname):
         comments = comment_ids[:count]
         return comments
@@ -254,58 +218,60 @@ class HackerNewsRecipe(BasicNewsRecipe):
     def x_process_comments(self, article, secname):
         comments = (
             self.x_fetch_api_comments(
-                article["comment_ids"][:self.COMMENT_COUNTS[0]],
+                article[u"comment_ids"][:self.COMMENT_COUNTS[0]],
                 secname
             )
         )
-        comments_count = len(article["comment_ids"])
+        comments_count = len(article[u"comment_ids"])
         html = self.x_format_comments(article, comments)
         return {
-            "html": html,
-            "count": comments_count
+            u"html": html,
+            u"count": comments_count
         }
 
     def x_format_comments(self, article, comments):
-        page_title = "Comments: {title}".format(title=article["title"])
-        out = "<!doctype html>\n"
-        out += "<html lang='en'>\n"
-        out += "<head>\n"
-        out += "<meta charset='utf-8' />\n"
-        out += (
-            "<title>{title}</title>\n".format(title=page_title)
+        out = []
+        page_title = u"Comments: {title}".format(title=article[u"title"])
+        out.append(u"<!doctype html>\n")
+        out.append(u"<html lang='en'>\n")
+        out.append(u"<head>\n")
+        out.append(u"<meta charset='utf-8' />\n")
+        out.append(
+            u"<title>{title}</title>\n".format(title=page_title)
         )
-        out += "</head>\n"
-        out += "<body>\n"
-        out += "<article id='hn-comments'>\n"
-        out += (
-            "<h1>{title}</h1>\n".format(title=page_title)
+        out.append(u"</head>\n")
+        out.append(u"<body>\n")
+        out.append(u"<article id='hn-comments'>\n")
+        out.append(
+            u"<h1>{title}</h1>\n".format(title=page_title)
         )
-        out += "<div>\n\n"
+        out.append(u"<div>\n\n")
         for comment in comments:
-            real_depth = comment["depth"] + 1
-            stars = " ".join(map(lambda x: "+", xrange(real_depth)))
+            real_depth = comment[u"depth"] + 1
+            stars = u" u".join(map(lambda x: u"+", xrange(real_depth)))
             comment_date = (
-                comment["date"]
+                comment[u"date"]
                 .astimezone(tz.tzlocal())
-                .strftime('%Y-%m-%d %I:%M:%S%p')
+                .strftime(u"%Y-%m-%d %I:%M:%S%p")
             )
-            out += "<div>\n"
-            out += (
-                "<h3>{stars} | {date}</h3>\n".format(
+            out.append(u"<div>\n")
+            out.append(
+                u"<h3>{stars} | {date}</h3>\n".format(
                     stars=stars,
                     date=comment_date
                 )
             )
-            out += "<div>\n"
-            out += comment["text"]
-            out += "\n"
-            out += "</div>\n"
-            out += "</div>\n\n"
-        out += "</div>\n"
-        out += "</article>\n"
-        out += "</body>\n"
-        out += "</html>\n"
-        return out
+            out.append(u"<div>\n")
+            out.append(comment[u"text"])
+            out.append(u"\n")
+            out.append(u"</div>\n")
+            out.append(u"</div>\n\n")
+        out.append(u"</div>\n")
+        out.append(u"</article>\n")
+        out.append(u"</body>\n")
+        out.append(u"</html>\n")
+        ret = u"".join(out)
+        return ret
 
     def x_fetch_articles(self):
         url = self.TOP_BASE_URL
@@ -316,7 +282,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         out_articles = []
         now = datetime.datetime.utcnow().replace(tzinfo=tz.tzutc())
         for article_id in new_article_ids:
-            self.report_progress(0, "Fetching Article: %s" % article_id)
+            self.report_progress(0, u"Fetching Article: %s" % article_id)
             article = self.x_get_article(article_id)
             if article is None:
                 continue
@@ -324,7 +290,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 continue
             article_date = (
                 datetime.datetime.utcfromtimestamp(
-                    int(article["time"])
+                    int(article[u"time"])
                 )
                 .replace(tzinfo=tz.tzutc())
             )
@@ -334,15 +300,15 @@ class HackerNewsRecipe(BasicNewsRecipe):
             if offsecs > cutoff:
                 continue
             out_articles.append({
-                "id": article["id"],
-                "title": article["title"],
-                "url": article["url"],
-                "domain": urlparse(article["url"]).netloc,
-                "score": article["score"],
-                "date": article_date,
-                "comment_ids": (
-                    article["kids"] if
-                    ("kids" in article) else
+                u"id": article[u"id"],
+                u"title": unicode(article[u"title"]),
+                u"url": unicode(article[u"url"]),
+                u"domain": urlparse(unicode(article[u"url"])).netloc,
+                u"score": article[u"score"],
+                u"date": article_date,
+                u"comment_ids": (
+                    article[u"kids"] if
+                    (u"kids" in article) else
                     []
                 )
             })
@@ -357,7 +323,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     def x_filter_articles(self, articles):
         now = datetime.datetime.utcnow().replace(tzinfo=tz.tzutc())
         def filt_date(article, hour):
-            article_date = article["date"]
+            article_date = article[u"date"]
             offset = now - article_date
             cutoff = (hour * 3600)
             offsecs = int(offset.total_seconds())
@@ -366,7 +332,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         arts_top = (
             sorted(
                 articles,
-                key=lambda a: a["score"],
+                key=lambda a: a[u"score"],
                 reverse=True
             )
         )
@@ -377,76 +343,66 @@ class HackerNewsRecipe(BasicNewsRecipe):
             for art in arts_top:
                 if not filt_date(art, hour):
                     continue
-                if art["id"] not in arts_top_lim_map:
-                    arts_top_lim_map[art["id"]] = art
+                if art[u"id"] not in arts_top_lim_map:
+                    arts_top_lim_map[art[u"id"]] = art
                     arts_top_lim[hour].append(art)
                 if len(arts_top_lim[hour]) >= self.ARTICLE_COUNT:
                     break
         arts_new = (
-            filter((lambda a: (a["id"] not in arts_top_lim_map)), articles)
+            filter((lambda a: (a[u"id"] not in arts_top_lim_map)), articles)
         )
         arts_new_lim = list(arts_new[:self.ARTICLE_COUNT])
         ret = {
-            "top": arts_top_lim,
-            "new": arts_new_lim
+            u"top": arts_top_lim,
+            u"new": arts_new_lim
         }
         return ret
 
     def x_build_art_details(self, articles, secname):
         out_articles = {}
         for article in articles:
-            self.report_progress(0, "Processing Article: %s" % article["id"])
-            format_date = article["date"].strftime('%Y-%m-%d %H:%M:%S')
+            self.report_progress(0, u"Processing Article: %s" % article[u"id"])
+            format_date = article[u"date"].strftime('%Y-%m-%d %H:%M:%S')
             article_title = (
-                "S | {score} | {domain} | {title}".format(
-                    score=article["score"],
-                    title=article["title"],
-                    domain=article["domain"]
+                u"S | {score} | {domain} | {title}".format(
+                    score=article[u"score"],
+                    title=article[u"title"],
+                    domain=article[u"domain"]
                 )
             )
             comments_res = self.x_process_comments(article, secname)
-            comments_html = comments_res["html"]
-            comments_count = comments_res["count"]
+            comments_html = comments_res[u"html"]
+            comments_count = comments_res[u"count"]
             comments_title = (
-                "C | {count} | {domain} | {title}".format(
+                u"C | {count} | {domain} | {title}".format(
                     count=comments_count,
-                    title=article["title"],
-                    domain=article["domain"]
+                    title=article[u"title"],
+                    domain=article[u"domain"]
                 )
             )
-            out_articles[article["id"]] = {
-                "title": article_title,
-                "url": article["url"],
-                "date": format_date,
-                "comments_title": comments_title,
-                "comments_html": comments_html
+            out_articles[article[u"id"]] = {
+                u"title": article_title,
+                u"url": article[u"url"],
+                u"date": format_date,
+                u"comments_title": comments_title,
+                u"comments_html": comments_html
             }
-            ##
-            ## HN puts a limit of 4 requests per minute
-            ## so we need to throttle this, so that we do not
-            ## go over that
-            ##
-            #self.report_progress(
-            #    0,
-            #    "Processed Article. Sleeping: %s" % article["id"]
-            #)
-            #time.sleep(15)
         return out_articles
 
     def x_collate_articles(self, articles, dets_map):
         return (
             map(
-                (lambda a: dets_map[a["id"]]),
+                (lambda a: dets_map[a[u"id"]]),
                 articles
             )
         )
 
     def x_build_art_details_all(self, filt_arts):
         dets_map = {}
-        for hour, filt_arts_top in filt_arts["top"].items():
-            out_top = self.x_build_art_details(filt_arts_top, "top")
+        for hour, filt_arts_top in filt_arts[u"top"].items():
+            out_top = self.x_build_art_details(filt_arts_top, u"top")
             dets_map.update(out_top)
-        dets_map_new = self.x_build_art_details(filt_arts["new"], "new")
+        dets_map_new = self.x_build_art_details(filt_arts[u"new"], u"new")
         dets_map.update(dets_map_new)
         return dets_map
 
@@ -455,44 +411,46 @@ class HackerNewsRecipe(BasicNewsRecipe):
         filt_arts = self.x_filter_articles(raw_arts)
         dets_map = self.x_build_art_details_all(filt_arts)
         ret = {}
-        out_new = self.x_collate_articles(filt_arts["new"], dets_map)
-        ret["New"] = out_new
-        for hour, filt_arts_top in filt_arts["top"].items():
+        out_new = self.x_collate_articles(filt_arts[u"new"], dets_map)
+        ret[u"New"] = out_new
+        for hour, filt_arts_top in filt_arts[u"top"].items():
             out_top = self.x_collate_articles(filt_arts_top, dets_map)
-            out_top_name = self.x_build_hour_name("Top", hour)
+            out_top_name = self.x_build_hour_name(u"Top", hour)
             ret[out_top_name] = out_top
         return ret
 
     def x_build_hour_name(self, sectitle, hour):
-        return "%s %sh" % (sectitle, hour)
+        return u"%s %sh" % (sectitle, hour)
 
     def x_save_comment_url(self, article):
-        tmp = PersistentTemporaryFile('_fa.html')
-        tmp.write(article["comments_html"])
+        tmp = PersistentTemporaryFile(u"_fa.html")
+        tmp.write(article[u"comments_html"])
         tmp.close()
         self.temp_files.append(tmp)
-        url = "".join(["file://", tmp.name])
+        url = u"".join([u"file://", tmp.name])
         return url
 
     def parse_index(self):
         item_grps = self.x_get_articles()
+        item_grps_pairs = item_grps.items()
+        item_grps_pairs_s = sorted(item_grps_pairs, key=lambda r: r[0])
         feeds = []
-        for section, items in item_grps.items():
+        for section, items in item_grps_pairs_s:
             articles = []
             for item in items:
                 articles.append({
-                    "title": item["title"],
-                    "url": item["url"],
-                    "date": item["date"],
-                    "description": item["title"],
-                    "content": ""
+                    u"title": item[u"title"],
+                    u"url": item[u"url"],
+                    u"date": item[u"date"],
+                    u"description": item[u"title"],
+                    u"content": u""
                 })
                 articles.append({
-                    "title": item["comments_title"],
-                    "url": self.x_save_comment_url(item),
-                    "date": item["date"],
-                    "description": item["comments_title"],
-                    "content": ""
+                    u"title": item[u"comments_title"],
+                    u"url": self.x_save_comment_url(item),
+                    u"date": item[u"date"],
+                    u"description": item[u"comments_title"],
+                    u"content": u""
                 })
             feeds.append((
                 section,
