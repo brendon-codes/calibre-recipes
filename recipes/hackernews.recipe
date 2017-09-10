@@ -248,7 +248,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
         out.append(u"<div>\n\n")
         for comment in comments:
             real_depth = comment[u"depth"] + 1
-            stars = u" u".join(map(lambda x: u"+", xrange(real_depth)))
+            stars = u" ".join(map(lambda x: u"+", xrange(real_depth)))
             comment_date = (
                 comment[u"date"]
                 .astimezone(tz.tzlocal())
@@ -424,7 +424,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
 
     def x_save_comment_url(self, article):
         tmp = PersistentTemporaryFile(u"_fa.html")
-        tmp.write(article[u"comments_html"])
+        tmp.write(article[u"comments_html"].encode(u"utf-8"))
         tmp.close()
         self.temp_files.append(tmp)
         url = u"".join([u"file://", tmp.name])
