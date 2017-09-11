@@ -18,4 +18,4 @@ sudo python2 ./custom_installer.py
 ##
 ## Patch some buggy code
 ##
-#sudo bash ./apply_patches.bash
+sudo bash ./apply_patches.bash
