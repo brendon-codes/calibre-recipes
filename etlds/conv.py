@@ -15,7 +15,7 @@ def clean(lin):
 
 def main():
     items = list(map(clean, sys.stdin))
-    tree = json.dumps(items, indent=4, sort_keys=True)
+    tree = json.dumps(items, indent=None, sort_keys=True)
     froze = "".join(["DOMAINS = frozenset(\n", tree, "\n)"])
     print(froze)
     return True
