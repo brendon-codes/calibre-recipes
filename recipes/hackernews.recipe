@@ -96,7 +96,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     #     """
     # )
 
-    DEBUG_ARTICLE_FETCH = True
+    DEBUG_ARTICLE_FETCH = False
     ARTICLE_COUNT = 20
     ARTICLE_TYPES = frozenset([
         u"story"
