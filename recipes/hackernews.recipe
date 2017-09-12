@@ -80,8 +80,23 @@ class HackerNewsRecipe(BasicNewsRecipe):
     auto_cleanup_keep = (
         u"//article[@id='hn-comments'] | //article[@id='hn-comments']::*"
     )
+    # extra_css = (
+    #     u"""
+    #     article#hn-comments div.depth-1 {
+    #       border-left: 4px solid #000000;
+    #     }
+    #     article#hn-comments div.depth-2 {
+    #       margin-left: 8px;
+    #       border-left: 4px solid #666666;
+    #     }
+    #     article#hn-comments div.depth-3 {
+    #       margin-left: 16px;
+    #       border-left: 4px solid #AAAAAA;
+    #     }
+    #     """
+    # )
 
-    DEBUG_ARTICLE_FETCH = False
+    DEBUG_ARTICLE_FETCH = True
     ARTICLE_COUNT = 20
     ARTICLE_TYPES = frozenset([
         u"story"
@@ -262,9 +277,13 @@ class HackerNewsRecipe(BasicNewsRecipe):
             comment_date = (
                 comment[u"date"]
                 .astimezone(tz.tzlocal())
-                .strftime(u"%Y-%m-%d %I:%M:%S%p")
+                .strftime(u"%m-%d %I:%M:%S%p")
             )
-            out.append(u"<div>\n")
+            out.append(
+                u"<div class='depth-{real_depth}'>\n".format(
+                    real_depth=real_depth
+                )
+            )
             out.append(
                 u"<h3>{stars} | {author} | {date}</h3>\n".format(
                     stars=stars,
@@ -397,7 +416,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
             comments_html = comments_res[u"html"]
             comments_count = comments_res[u"count"]
             comments_title = (
-                u"{index}. Comments ({count})".format(
+                u"Comments ({count})".format(
                     index=index,
                     count=comments_count
                 )
