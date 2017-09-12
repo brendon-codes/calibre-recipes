@@ -5,9 +5,9 @@ u"""
 Hacker News Recipe
 
 Sometimes with this recipe, you might get a SplitError.
-If you are using Kindle, you can usually solve this with the
-following steps:
+If you are using Kindle, here are some steps to try to solve this:
 
+METHOD 1
 1. Select "Preferences"
 2. Select "Output Options"
 3. Select "EPUB Output"
@@ -15,12 +15,21 @@ following steps:
    1. Enter a large value such as "100000 KB".
       For reasons unknown, as of Calibre v3.6, entering
       a value of "0" does not seem to work as expected.
+      Keep in mind that splitting with a value over 240KB could
+      cause various problems and errors for some devices, although
+      I have not observed any problems for Kindle.
 5. Click "Apply"
 6. Click "Close"
 
-Keep in mind that splitting with a value over 240KB could
-cause various problems and errors for some devices, although
-I have not observed any problems for Kindle.
+If METHOD 1 does not work, you can try the next method,
+which could cause unexpected behaviours for non-kindle devices.
+
+METHOD 2
+1. Run these commands
+
+    git clone https://github.com/brendoncrawford-org/calibre_recipes.git
+    cd calibre_recipes/installer/
+    ./apply_patches.bash
 
 """
 
