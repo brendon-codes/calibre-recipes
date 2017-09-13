@@ -78,32 +78,25 @@ class HackerNewsRecipe(BasicNewsRecipe):
     ]
     remove_attributes = [u"style", u"href"]
     auto_cleanup_keep = (
-        u"//div[@id='hn-comments'] | //div[@id='hn-comments']::*"
+        u"""//div[@id="hn-comments"] | """
+        u"""//div[@id="hn-comments"]::*"""
     )
     extra_css = (
         u"""
-        div#hn-comments div.hn-list {
+        div#hn-comments ul {
           list-style-type: none;
+          padding-left: 0px;
+        }
+
+        div#hn-comments div#header > ul#hn-list,
+        div#hn-comments div#hn-box > ul#hn-list {
           margin-left: 0px;
-          padding-left: 0px !important;
+          padding-left: 0px;
         }
 
-        div#hn-comments div.hn-list div.hn-item {
-          padding-left: 10px;
-        }
-
-        div#hn-comments div.hn-list div.hn-item.depth1 {
-          border-left: 4px solid #000000;
-        }
-
-        div#hn-comments div.hn-list div.hn-item.depth2 {
-          margin-left: 8px;
-          border-left: 4px solid #666666;
-        }
-
-        div#hn-comments div.hn-list > div.hn-item.depth3 {
+        div#hn-comments div#header > ul#hn-list ul,
+        div#hn-comments div#hn-box > ul#hn-list ul {
           margin-left: 16px;
-          border-left: 4px solid #AAAAAA;
         }
         """
     )
@@ -233,7 +226,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 ),
                 u"depth": depth,
                 u"text": unicode(comment_json[u"text"]),
-                u"author": unicode(comment_json[u"by"])
+                u"author": unicode(comment_json[u"by"]),
+                u"children": []
             })
             sub_comment_ids = (
                 comment_json[u"kids"] if
@@ -242,7 +236,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
             )
             self.x_build_comments(
                 sub_comment_ids,
-                ret_comments,
+                ret_comments[-1][u"children"],
                 secname,
                 (depth + 1)
             )
@@ -251,6 +245,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     def x_fetch_api_comments(self, comment_ids, secname):
         comments = []
         self.x_build_comments(comment_ids, comments, secname)
+        #pprint(comments)
         return comments
 
     def x_filter_comments(self, comment_ids, count, secname):
@@ -271,6 +266,35 @@ class HackerNewsRecipe(BasicNewsRecipe):
             u"count": comments_count
         }
 
+    def x_format_comments_body(self, comments, out):
+        out.append(
+            u"<ul class='hn-list'>\n"
+        )
+        for comment in comments:
+            real_depth = comment[u"depth"] + 1
+            stars = u" ".join(map(lambda x: u"+", xrange(real_depth)))
+            comment_date = (
+                comment[u"date"]
+                .astimezone(tz.tzlocal())
+                .strftime(u"%m-%d %I:%M:%S%p")
+            )
+            out.append("<li class='hn-item'>")
+            out.append(
+                u"<h3>{stars} | {author} | {date}</h3>\n".format(
+                    stars=stars,
+                    author=comment[u"author"],
+                    date=comment_date
+                )
+            )
+            out.append(u"<div>\n")
+            out.append(comment[u"text"])
+            out.append(u"\n")
+            out.append(u"</div>\n")
+            self.x_format_comments_body(comment[u"children"], out)
+            out.append("</li>")
+        out.append(u"</ul>\n\n")
+        return True
+
     def x_format_comments(self, article, comments):
         out = []
         page_title = u"Comments: {title}".format(title=article[u"title"])
@@ -287,32 +311,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
         out.append(
             u"<h1>{title}</h1>\n".format(title=page_title)
         )
-        out.append(u"<div class='hn-list'>\n\n")
-        for comment in comments:
-            real_depth = comment[u"depth"] + 1
-            stars = u" ".join(map(lambda x: u"+", xrange(real_depth)))
-            comment_date = (
-                comment[u"date"]
-                .astimezone(tz.tzlocal())
-                .strftime(u"%m-%d %I:%M:%S%p")
-            )
-            out.append(
-                u"<div class='hn-item depth{real_depth}'>\n".format(
-                    real_depth=real_depth
-                )
-            )
-            out.append(
-                u"<h3>{stars} | {author} | {date}</h3>\n".format(
-                    stars=stars,
-                    author=comment[u"author"],
-                    date=comment_date
-                )
-            )
-            out.append(u"<div>\n")
-            out.append(comment[u"text"])
-            out.append(u"\n")
-            out.append(u"</div>\n")
-            out.append(u"</div>\n\n")
+        out.append(u"<div class='hn-box'>\n\n")
+        self.x_format_comments_body(comments, out)
         out.append(u"</div>\n")
         out.append(u"</div>\n")
         out.append(u"</body>\n")
