@@ -6,19 +6,3 @@
 >         except:
 >             self.log.error("Split Error")
 >             pass
-465,471c469,475
-<                 for lb in XPath('//h:ul[@class]|//h:ol[@class]')(root):
-<                     sel = '.'+lb.get('class')
-<                     for rule in stylesheet.data.cssRules.rulesOfType(CSSRule.STYLE_RULE):
-<                         if sel == rule.selectorList.selectorText:
-<                             rule.style.removeProperty('margin-left')
-<                             # padding-left breaks rendering in webkit and gecko
-<                             rule.style.removeProperty('padding-left')
----
->                 # for lb in XPath('//h:ul[@class]|//h:ol[@class]')(root):
->                 #     sel = '.'+lb.get('class')
->                 #     for rule in stylesheet.data.cssRules.rulesOfType(CSSRule.STYLE_RULE):
->                 #         if sel == rule.selectorList.selectorText:
->                 #             rule.style.removeProperty('margin-left')
->                 #             # padding-left breaks rendering in webkit and gecko
->                 #             rule.style.removeProperty('padding-left')
