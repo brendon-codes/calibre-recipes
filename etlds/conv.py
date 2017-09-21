@@ -9,7 +9,17 @@ from pprint import pprint
 def clean(lin):
     a = lin.strip()
     parts = a.split(".")
-    red = filter(lambda r: r != "*", parts)
+    red = (
+        filter(
+            (
+                lambda r: (
+                    (r != "*") and
+                    (not r.startswith("!"))
+                )
+            ),
+            parts
+        )
+    )
     b = ".".join(red)
     return b
 
@@ -28,7 +38,7 @@ def main():
             tree
         )
     )
-    froze = "".join(["DOMAINS = frozenset(\n", tree_uni, "\n)"])
+    froze = "".join(["    DOMAINS = frozenset(\n        ", tree_uni, "\n    )"])
     print(froze)
     return True
 
