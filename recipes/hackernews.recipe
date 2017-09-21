@@ -83,7 +83,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     )
     extra_css = ()
 
-    DEBUG_ARTICLE_FETCH = False
+    DEBUG_ARTICLE_FETCH = True
     ARTICLE_COUNT = 20
     ARTICLE_TYPES = frozenset([
         u"story"
@@ -259,9 +259,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
         service.
         """
         out.append(
-            u"<table alt='hn-list' class='hn-list'>\n"
+            u"<ol alt='hn-list' class='hn-list'>\n"
         )
-        out.append("<tbody>\n")
         for comment in comments:
             real_depth = comment[u"depth"] + 1
             stars = u" ".join(map(lambda x: u"+", xrange(real_depth)))
@@ -270,14 +269,9 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 .astimezone(tz.tzlocal())
                 .strftime(u"%m-%d %I:%M:%S%p")
             )
-            out.append(u"<tr>\n")
-            out.append(u"<td>")
-            out.append(u"".join([u"&nbsp;"] * comment[u"depth"]))
-            out.append(u"\n")
-            out.append(u"</td>\n")
-            out.append(u"<td>\n")
+            out.append(u"<li>\n")
             out.append(
-                u"<h3>{stars} | {author} | {date}</h3>\n".format(
+                u"<b>{stars} | {author} | {date}</b>\n".format(
                     stars=stars,
                     author=comment[u"author"],
                     date=comment_date
@@ -289,10 +283,8 @@ class HackerNewsRecipe(BasicNewsRecipe):
             out.append(u"</div>\n")
             if len(comment[u"children"]) > 0:
                 self.x_format_comments_body(comment[u"children"], out)
-            out.append(u"</td>")
-            out.append(u"</tr>")
-        out.append(u"</tbody>\n")
-        out.append(u"</table>\n\n")
+            out.append(u"</li>\n")
+        out.append(u"</ol>\n\n")
         return True
 
     def x_format_comments(self, article, comments):
@@ -362,7 +354,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
             ##
             ## Debug
             ##
-            if self.DEBUG_ARTICLE_FETCH and (i > 7):
+            if self.DEBUG_ARTICLE_FETCH and (i > 10):
                 break
             i += 1
         return out_articles
