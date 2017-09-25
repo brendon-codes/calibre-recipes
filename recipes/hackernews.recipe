@@ -84,7 +84,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     extra_css = ()
 
     DEBUG_ARTICLE_FETCH = False
-    ARTICLE_COUNT = 20
+    ARTICLE_COUNT = 30
     ARTICLE_TYPES = frozenset([
         u"story"
     ])
@@ -98,12 +98,11 @@ class HackerNewsRecipe(BasicNewsRecipe):
     ITEM_BASE_URL = u"https://hacker-news.firebaseio.com/v0/item/{id}.json"
     TOP_BASE_URL = u"https://hacker-news.firebaseio.com/v0/topstories.json"
     COMMENT_COUNTS = [12, 6, 1]
-    ARTICLE_DATE_HOURS = [12, 24]
+    ARTICLE_DATE_HOURS = [12]
     FEED_SORTS = {
         u"Top 12h": 0,
-        u"Top 24h": 1,
-        u"New": 2,
-        u"Default": 3
+        u"New": 1,
+        u"Default": 2
     }
 
     def extract_readable_article(self, html, url):
