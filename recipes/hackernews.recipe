@@ -98,6 +98,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
     ITEM_BASE_URL = u"https://hacker-news.firebaseio.com/v0/item/{id}.json"
     TOP_BASE_URL = u"https://hacker-news.firebaseio.com/v0/topstories.json"
     COMMENT_COUNTS = [12, 6, 1]
+    ARTICLE_DATE_HOUR_CUTOFF = 24
     ARTICLE_DATE_HOURS = [12]
     FEED_SORTS = {
         u"Top 12h": 0,
@@ -343,7 +344,7 @@ class HackerNewsRecipe(BasicNewsRecipe):
                 .replace(tzinfo=tz.tzutc())
             )
             offset = now - article_date
-            cutoff = (max(self.ARTICLE_DATE_HOURS) * 3600)
+            cutoff = (self.ARTICLE_DATE_HOUR_CUTOFF * 3600)
             offsecs = int(offset.total_seconds())
             if offsecs > cutoff:
                 continue
