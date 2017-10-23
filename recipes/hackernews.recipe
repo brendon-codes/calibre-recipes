@@ -99,9 +99,9 @@ class HackerNewsRecipe(BasicNewsRecipe):
     TOP_BASE_URL = u"https://hacker-news.firebaseio.com/v0/topstories.json"
     COMMENT_COUNTS = [12, 6, 1]
     ARTICLE_DATE_HOUR_CUTOFF = 24
-    ARTICLE_DATE_HOURS = [12]
+    ARTICLE_DATE_HOURS = [24]
     FEED_SORTS = {
-        u"Top 12h": 0,
+        u"Top 24h": 0,
         u"New": 1,
         u"Default": 2
     }
