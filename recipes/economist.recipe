@@ -13,6 +13,7 @@ from dateutil import relativedelta
 from dateutil.parser import parse as dt_parse
 from dateutil.tz import tzutc
 
+import cookielib
 from calibre.web.feeds.news import BasicNewsRecipe
 from calibre.ebooks.BeautifulSoup import BeautifulSoup as Soup
 from calibre.ebooks.BeautifulSoup import Comment as SoupComment
@@ -46,9 +47,8 @@ class TheEconomistRecipe(BasicNewsRecipe):
             return None
         if not imgelm.has_key("src"):
             return None
-        path = imgelm["src"]
-        src = "".join([self.x_base_url, path])
-        print("IMAGE: %s" % src)
+        src = imgelm["src"]
+        print("COVER_IMAGE: %s" % src)
         return src
 
     def x_get_page_soup(self):
@@ -58,14 +58,47 @@ class TheEconomistRecipe(BasicNewsRecipe):
 
     def get_browser(self):
         br = super(TheEconomistRecipe, self).get_browser()
-        if (self.username is not None) and (self.password is not None):
-            login_url = "/".join([self.x_base_url, "user", "login"])
-            br.open(login_url)
-            br.select_form(nr=1)
-            br["name"] = self.username
-            br["pass"] = self.password
-            br["persistent_login"] = ["1"]
-            br.submit()
+        ##
+        ## Add a cookie indicating we have accepted Economist cookie
+        ## policy (needed when running from some European countries)
+        ##
+        ## See:
+        ##   https://github.com/kovidgoyal/calibre
+        ##     /blob/master/recipes/economist.recipe#L109
+        ##
+        ck = (
+            cookielib.Cookie(
+                version=0,
+                name="notice_preferences",
+                value="2:",
+                port=None,
+                port_specified=False,
+                domain=".economist.com",
+                domain_specified=False,
+                domain_initial_dot=True,
+                path="/",
+                path_specified=False,
+                secure=False,
+                expires=None,
+                discard=False,
+                comment=None,
+                comment_url=None,
+                rest={"HttpOnly": None},
+                rfc2109=False
+            )
+        )
+        br.cookiejar.set_cookie(ck)
+        br.set_handle_gzip(True)
+        ## If no credentials, then we can leave now
+        if self.username is None or self.password is None:
+            return br
+        login_url = "/".join([self.x_base_url, "user", "login"])
+        br.open(login_url)
+        br.select_form(nr=1)
+        br["name"] = self.username
+        br["pass"] = self.password
+        br["persistent_login"] = ["1"]
+        br.submit()
         return br
 
     def x_fetch_url(self, url):
