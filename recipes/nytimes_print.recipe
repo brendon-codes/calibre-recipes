@@ -17,7 +17,7 @@ from calibre.ptempfile import PersistentTemporaryFile
 from calibre.web.feeds.news import BasicNewsRecipe
 
 
-class NYTimesRecipe(BasicNewsRecipe):
+class NYTimesPrintRecipe(BasicNewsRecipe):
     title = "The New York Times"
     __author__ = "Brendon Crawford"
     oldest_article = 2
@@ -155,14 +155,6 @@ class NYTimesRecipe(BasicNewsRecipe):
             return ""
         return ", ".join(feed_article["authors"])
 
-    def x_save_article_url(self, article):
-        tmp = PersistentTemporaryFile('_fa.html')
-        tmp.write(article["comments_html"])
-        tmp.close()
-        self.temp_files.append(tmp)
-        url = "".join(["file://", tmp.name])
-        return url
-
     def x_fetch_art_body(self, article_id):
         dt = datetime.datetime.now()
         art_url = self.x_art_url_base.format(**{
@@ -212,6 +204,7 @@ class NYTimesRecipe(BasicNewsRecipe):
         return url
 
     def x_build_image(self, asset):
+        print("ASSET_URL: %s" % asset["url"])
         out = "<figure>"
         out += (
             "<img "
