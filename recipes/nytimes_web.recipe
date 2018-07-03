@@ -28,7 +28,7 @@ oldest_web_edition_article = 2
 web_sections = [
     ('World', 'world'),
     ('U.S.', 'us'),
-    #('Politics', 'politics'),
+    ('Politics', 'politics')
     #('New York', 'nyregion'),
     #('Business', 'business'),
     #('Technology', 'technology'),
