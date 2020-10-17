@@ -154,10 +154,10 @@ class Economist(BasicNewsRecipe):
     # downloaded with connection reset by peer (104) errors.
     delay = 1
 
-    needs_subscription = False
+    needs_subscription = True
 
     BLOCK_WORDS = frozenset([
-        "camelot"
+        "foobar"
     ])
 
     def __init__(self, *args, **kwargs):
@@ -275,7 +275,7 @@ class Economist(BasicNewsRecipe):
         for section in soup.findAll(**classes('layout-weekly-edition-section')):
             h2 = section.find('h2')
             secname = self.tag_to_string(h2)
-            self.log(secname)
+            self.log("SECTION", secname)
             articles = []
             for a in section.findAll('a', href=True, **classes('headline-link weekly-edition-wtw__link')):
                 spans = a.findAll('span')
@@ -293,7 +293,8 @@ class Economist(BasicNewsRecipe):
                     self.log('BLOCKED', title)
                     continue
                 articles.append({'title': title, 'url': process_url(a['href']), 'description': desc})
-                self.log(' ', title, articles[-1]['url'], '\n   ', desc)
+                # self.log(' ', title, articles[-1]['url'], '\n   ', desc)
+                self.log("ARTICLE", title)
             if articles:
                 feeds.append((secname, articles))
         return feeds
