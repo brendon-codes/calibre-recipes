@@ -27,9 +27,10 @@ class AssociatedPress(BasicNewsRecipe):
     publication_type = "newspaper"
 
     FEED_TAGS = [
-        ("politics", "Politics"),
-        ("usnews", "U.S."),
-        ("intlnews", "World")
+        ("topnews", "Top News")
+        #("politics", "Politics"),
+        #("usnews", "U.S."),
+        #("intlnews", "World")
     ]
     FEED_BASE_URL = (
         u"https://afs-prod.appspot.com/api/v2/feed/tag?tags=apf-%(CODE)s"
