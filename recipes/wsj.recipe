@@ -53,6 +53,10 @@ class WSJ(BasicNewsRecipe):
     needs_subscription = needs_subscription
     WSJ_ITP = 'https://www.wsj.com/print-edition/today'
 
+    BLOCK_WORDS = [
+        "foobar"
+    ]
+
     keep_only_tags = [
         dict(classes('wsj-article-headline-wrap article_header bigTop__hed bigTop__dek bigTop__captioncredit')),
         dict(name='span', itemprop='author', rel='author'),
@@ -72,6 +76,21 @@ class WSJ(BasicNewsRecipe):
              'data-country-code': True, 'data-ticker-code': True}),
         dict(name='meta link'.split()),
     ]
+
+    def is_in_blocklist(self, title, desc):
+        def contains(haystack, needles):
+            for needle in needles:
+                if needle in haystack:
+                    return True
+            return False
+        makeparts = lambda text: re.sub(r"(?um)\W+", "\u0020", re.sub(r"^\s+|\s+$", "", text.lower()))
+        has_title = contains(makeparts(title), self.BLOCK_WORDS)
+        if has_title:
+            return True
+        has_desc = contains(makeparts(desc), self.BLOCK_WORDS)
+        if has_desc:
+            return True
+        return False
 
     def preprocess_soup(self, soup):
         # Slideshow and expandable images need to be processed here to
@@ -185,10 +204,11 @@ class WSJ(BasicNewsRecipe):
                     continue
                 desc += q
                 break
-
+            if self.is_in_blocklist(title, desc):
+                self.log('BLOCKED', title)
+                continue
             articles.append({'title': title, 'url': url,
                              'description': desc, 'date': ''})
-
             self.log('\tFound article:', title)
             # self.log('\t\t', desc)
         return articles

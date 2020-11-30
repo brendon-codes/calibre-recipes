@@ -156,9 +156,9 @@ class Economist(BasicNewsRecipe):
 
     needs_subscription = True
 
-    BLOCK_WORDS = frozenset([
+    BLOCK_WORDS = [
         "foobar"
-    ])
+    ]
 
     def __init__(self, *args, **kwargs):
         BasicNewsRecipe.__init__(self, *args, **kwargs)
@@ -170,8 +170,12 @@ class Economist(BasicNewsRecipe):
             self.log.warn('Kindle Output profile being used, reducing image quality to keep file size below amazon email threshold')
 
     def is_in_blocklist(self, title, desc):
-        makeparts = lambda text: frozenset(re.split(r"(?um)\W+", text.strip().lower()))
-        contains = lambda parts1, parts2: not parts1.isdisjoint(parts2)
+        def contains(haystack, needles):
+            for needle in needles:
+                if needle in haystack:
+                    return True
+            return False
+        makeparts = lambda text: re.sub(r"(?um)\W+", "\u0020", re.sub(r"^\s+|\s+$", "", text.lower()))
         has_title = contains(makeparts(title), self.BLOCK_WORDS)
         if has_title:
             return True
