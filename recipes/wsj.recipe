@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import time
 import json
 from base64 import standard_b64encode
 
@@ -38,6 +39,9 @@ class WSJ(BasicNewsRecipe):
     __author__ = 'Kovid Goyal'
     description = 'News and current affairs'
     language = 'en'
+
+    delay = 1
+    simultaneous_downloads = 1
 
     compress_news_images = True
     compress_news_images_auto_size = 7
@@ -169,7 +173,7 @@ class WSJ(BasicNewsRecipe):
         root = self.index_to_soup(url, as_tree=True)
         CSSSelect = Select(root)
         articles = []
-        for container in root.xpath('descendant::div[contains(@class, "WSJTheme--list-item-")]'):
+        for container in CSSSelect('div[class^="WSJTheme--list-item-"]'):
             heading = next(CSSSelect('h2, h3', container))
             a = next(CSSSelect('a', heading))
             title = self.tag_to_string(a)
@@ -186,8 +190,7 @@ class WSJ(BasicNewsRecipe):
                              'description': desc, 'date': ''})
 
             self.log('\tFound article:', title)
-            self.log('\t\t', desc)
-
+            # self.log('\t\t', desc)
         return articles
 
     def wsj_find_wn_articles(self, feeds, root, CSSSelect):
@@ -216,10 +219,12 @@ class WSJ(BasicNewsRecipe):
 
     def wsj_add_feed(self, feeds, title, url):
         try:
-            articles = self.wsj_find_articles(url)
-            if not articles:
-                # retry once, sometimes these pages come up empty
+            for i in range(10):
                 articles = self.wsj_find_articles(url)
+                if len(articles) > 0:
+                    break
+                self.log("No articles found. Sleeping. Retrying.")
+                time.sleep(4)
         except Exception:
             self.log.exception('Failed to parse section:', title)
             articles = []
@@ -232,13 +237,8 @@ class WSJ(BasicNewsRecipe):
         CSSSelect = Select(root)
         # from calibre.utils.ipython import ipython
         # ipython({'root': root, 'CSSSelect': CSSSelect, 'raw': self.wsj_itp_page})
-        for inp in CSSSelect('.DayPickerInput > input'):
-            if inp.get('placeholder'):
-                self.timefmt = inp.get('placeholder')
-                break
-
         feeds = []
-        for a in CSSSelect('.WSJTheme--nav-container--2qF6xQnZ .WSJTheme--section-link--3VznjgTM'):
+        for a in CSSSelect('a[class^="WSJTheme--section-link-"]'):
             frontpage = a.get('href').endswith('frontpage')
             title = self.tag_to_string(a).capitalize().strip().replace('U.s.', 'U.S.')
             if not title:
@@ -257,3 +257,4 @@ class WSJ(BasicNewsRecipe):
                  'url': 'https://www.wsj.com/articles/gms-plan-to-drop-chevy-cruze-hits-ohio-town-hard-1543314600'},  # noqa
             ]),
         ]
+
